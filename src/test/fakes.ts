@@ -3,6 +3,8 @@ import type { MapAdapter, MapFactory } from '../map/map-types'
 
 export function createMapFactoryFake() {
   let clickListener: ((location: { latitude: number; longitude: number }) => void) | undefined
+  let tileErrorListener: ((message: string) => void) | undefined
+  let retryTileCalls = 0
   const setViews: Array<{ center: { latitude: number; longitude: number }; zoom: number }> = []
   const adapter: MapAdapter = {
     setView(center, zoom) { setViews.push({ center, zoom }) },
@@ -16,15 +18,22 @@ export function createMapFactoryFake() {
     renderBins() {},
     renderCandidates() {},
     setLayerVisibility() {},
-    retryTiles() {},
+    retryTiles() { retryTileCalls += 1 },
     destroy() {},
   }
   return {
-    factory: (() => adapter) as MapFactory,
+    factory: ((_, options) => {
+      tileErrorListener = options.onTileError
+      return adapter
+    }) as MapFactory,
     click(latitude: number, longitude: number) {
       clickListener?.({ latitude, longitude })
     },
     setViews,
+    tileError(message: string) {
+      tileErrorListener?.(message)
+    },
+    retryTileCalls: () => retryTileCalls,
   }
 }
 

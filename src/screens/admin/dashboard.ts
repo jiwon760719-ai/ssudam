@@ -170,7 +170,7 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
       <article><span>설치 추천 위치</span><strong data-metric="candidates">0</strong><small>상위 3개 후보</small></article>
     </section>
     <section class="admin-content">
-      <div class="map-panel"><div class="admin-map" data-map aria-label="제보와 추천 위치 지도"></div><p class="map-status" data-map-status aria-live="polite"></p></div>
+      <div class="map-panel"><div class="admin-map" data-map aria-label="제보와 추천 위치 지도"></div><p class="map-status" data-map-status aria-live="polite"></p><button type="button" class="tile-retry" data-action="retry-tiles" hidden>지도 다시 불러오기</button></div>
       <aside class="insight-panel">
         <section aria-labelledby="candidate-title"><div class="section-heading"><div><p class="eyebrow">설명 가능한 점수</p><h2 id="candidate-title">추천 위치</h2></div><span class="score-legend">밀집도 70 · 반복 20 · 거리 10</span></div><div class="candidate-list" data-candidates></div></section>
         <section class="latest-report" aria-labelledby="latest-title"><h2 id="latest-title">주민 제보 확인</h2><div data-latest></div></section>
@@ -184,6 +184,7 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
   const daySelect = element.querySelector<HTMLSelectElement>('[data-filter="days"]')!
   const mapContainer = element.querySelector<HTMLElement>('[data-map]')!
   const mapStatus = element.querySelector<HTMLElement>('[data-map-status]')!
+  const retryTilesButton = element.querySelector<HTMLButtonElement>('[data-action="retry-tiles"]')!
   const candidateList = element.querySelector<HTMLElement>('[data-candidates]')!
   const latestReport = element.querySelector<HTMLElement>('[data-latest]')!
   const emptyState = element.querySelector<HTMLElement>('[data-empty]')!
@@ -253,6 +254,7 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
   }
   const onOpenReset = () => dialog.showModal()
   const onConfirmReset = () => dependencies.repository.reset()
+  const onRetryTiles = () => map?.retryTiles()
 
   citySelect.addEventListener('change', onCityChange)
   daySelect.addEventListener('change', onDayChange)
@@ -260,6 +262,7 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
   candidateList.addEventListener('click', onCandidateClick)
   element.querySelector('[data-action="open-reset"]')?.addEventListener('click', onOpenReset)
   element.querySelector('[data-action="confirm-reset"]')?.addEventListener('click', onConfirmReset)
+  retryTilesButton.addEventListener('click', onRetryTiles)
   const unsubscribe = dependencies.repository.subscribe(refresh)
   refresh()
 
@@ -270,8 +273,16 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
       map = dependencies.mapFactory(mapContainer, {
         center: NATIONAL_CENTER,
         zoom: NATIONAL_ZOOM,
-        onTileError(message) { mapStatus.textContent = message },
-        onTileReady() { mapStatus.textContent = '' },
+        onTileError(message) {
+          if (destroyed) return
+          mapStatus.textContent = message
+          retryTilesButton.hidden = false
+        },
+        onTileReady() {
+          if (destroyed) return
+          mapStatus.textContent = ''
+          retryTilesButton.hidden = true
+        },
       })
       refresh()
     },
@@ -285,6 +296,7 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
       candidateList.removeEventListener('click', onCandidateClick)
       element.querySelector('[data-action="open-reset"]')?.removeEventListener('click', onOpenReset)
       element.querySelector('[data-action="confirm-reset"]')?.removeEventListener('click', onConfirmReset)
+      retryTilesButton.removeEventListener('click', onRetryTiles)
       map?.destroy()
       map = undefined
     },

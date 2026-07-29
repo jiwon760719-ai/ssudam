@@ -32,6 +32,7 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
       <p class="eyebrow">주민 제보</p>
       <h1 id="report-title">쓰레기를 발견하셨나요?</h1>
       <p class="screen-intro">사진과 위치를 남겨 주시면 관리자 지도에 바로 반영됩니다.</p>
+      <p class="storage-warning" data-storage-warning aria-live="polite" hidden></p>
       <form novalidate>
         <div class="field">
           <label for="city-code">지역 선택</label>
@@ -68,6 +69,7 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
   const summary = element.querySelector<HTMLElement>('[data-location]')!
   const preview = element.querySelector<HTMLImageElement>('[data-preview]')!
   const compression = element.querySelector<HTMLElement>('[data-compression]')!
+  const storageWarning = element.querySelector<HTMLElement>('[data-storage-warning]')!
   const submitButton = form.querySelector<HTMLButtonElement>('[type="submit"]')!
 
   const renderLocation = (next: Coordinates) => {
@@ -125,7 +127,7 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
       renderErrors({ photoDataUrl: undefined })
     } catch {
       if (destroyed || currentGeneration !== imageGeneration) return
-      compression.textContent = '사진을 처리하지 못했습니다. 다른 이미지를 선택해 주세요.'
+      compression.textContent = '사진을 처리하지 못했습니다. 다른 사진을 선택해 주세요.'
     }
   })
 
@@ -148,6 +150,10 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
     submitButton.disabled = true
     submitButton.textContent = '제보를 저장하고 있습니다…'
     const report = dependencies.repository.addReport(result.value)
+    if (dependencies.repository.getLastWarning() === 'storage-quota') {
+      storageWarning.textContent = '브라우저 저장 공간이 부족해 현재 화면에서만 제보가 유지됩니다.'
+      storageWarning.hidden = false
+    }
     dependencies.navigate({ name: 'resident-complete', reportId: report.id })
   })
 

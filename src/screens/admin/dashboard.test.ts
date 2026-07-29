@@ -77,3 +77,49 @@ it('refreshes mounted administrator evidence when a resident report is submitted
   screen.destroy()
   expect(repository.listenerCount()).toBe(0)
 })
+
+it('keeps dashboard data available and retries tiles after a map tile error', () => {
+  const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
+  const map = createMapFactoryFake()
+  const screen = renderAdminDashboard({
+    repository,
+    mapFactory: map.factory,
+    navigate() {},
+  })
+  document.body.append(screen.element)
+  screen.mount?.()
+
+  map.tileError('지도를 불러오지 못했습니다. 데이터 레이어는 계속 사용할 수 있습니다.')
+
+  expect(screen.element.querySelector('[data-map-status]')?.textContent)
+    .toBe('지도를 불러오지 못했습니다. 데이터 레이어는 계속 사용할 수 있습니다.')
+  expect(screen.element.querySelector('[data-map]')).not.toBeNull()
+  const retry = screen.element.querySelector<HTMLButtonElement>('[data-action="retry-tiles"]')
+  expect(retry).not.toBeNull()
+  retry?.click()
+  expect(map.retryTileCalls()).toBe(1)
+})
+
+it('resets demo data only after the reset dialog is confirmed', () => {
+  const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
+  repository.addReport({
+    cityCode: '11',
+    cityName: '서울특별시',
+    latitude: 37.5665,
+    longitude: 126.978,
+    photoDataUrl: 'data:image/webp;base64,AAAA',
+  })
+  const screen = renderAdminDashboard({
+    repository,
+    mapFactory: createMapFactoryFake().factory,
+    navigate() {},
+  })
+  document.body.append(screen.element)
+
+  screen.element.querySelector<HTMLButtonElement>('[data-action="open-reset"]')?.click()
+  expect(repository.getState().reports).toHaveLength(1)
+  screen.element.querySelector<HTMLButtonElement>('[data-action="confirm-reset"]')?.click()
+
+  expect(repository.getState().reports).toHaveLength(0)
+  expect(screen.element.querySelector('[data-metric="total"]')?.textContent).toBe('0')
+})

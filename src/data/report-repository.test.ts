@@ -110,4 +110,67 @@ describe('report repository', () => {
     expect(listener).toHaveBeenCalledOnce()
     expect(repository.getLastWarning()).toBe('storage-unavailable')
   })
+
+  it('keeps the report in memory when localStorage quota is exceeded', () => {
+    const storage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new DOMException('quota', 'QuotaExceededError')
+      },
+      removeItem() {},
+      clear() {},
+      key: () => null,
+      length: 0,
+    } satisfies Storage
+    const repository = createReportRepository({
+      storage,
+      idFactory: () => 'MEMORY-1',
+    })
+
+    repository.addReport(input)
+
+    expect(repository.getReport('MEMORY-1')).toBeDefined()
+    expect(repository.getLastWarning()).toBe('storage-quota')
+  })
+
+  it('reloads state when another tab updates the storage key', () => {
+    const listener = vi.fn()
+    const repository = createReportRepository({ storage: localStorage })
+    repository.subscribe(listener)
+    const next = { ...repository.getState(), reports: [] }
+    localStorage.setItem('ssudam:data:v1', JSON.stringify(next))
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ssudam:data:v1',
+      newValue: JSON.stringify(next),
+    }))
+
+    expect(repository.getState().reports).toEqual([])
+    expect(listener).toHaveBeenCalled()
+    repository.destroy()
+  })
+
+  it('ignores invalid storage events and stops synchronizing after destroy', () => {
+    const listener = vi.fn()
+    const repository = createReportRepository({ storage: localStorage })
+    repository.subscribe(listener)
+    const next = { ...repository.getState(), reports: [] }
+
+    window.dispatchEvent(new StorageEvent('storage', { key: 'other-key', newValue: JSON.stringify(next) }))
+    window.dispatchEvent(new StorageEvent('storage', { key: 'ssudam:data:v1', newValue: null }))
+    window.dispatchEvent(new StorageEvent('storage', { key: 'ssudam:data:v1', newValue: '{invalid' }))
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ssudam:data:v1',
+      newValue: JSON.stringify({ version: 2, reports: [], bins: [] }),
+    }))
+
+    expect(listener).not.toHaveBeenCalled()
+    repository.destroy()
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ssudam:data:v1',
+      newValue: JSON.stringify(next),
+    }))
+
+    expect(listener).not.toHaveBeenCalled()
+  })
 })

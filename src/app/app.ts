@@ -1,6 +1,6 @@
 import { parseHash, type AppRoute } from './router'
 
-export type ScreenHandle = { element: HTMLElement; destroy(): void }
+export type ScreenHandle = { element: HTMLElement; mount?(): void; destroy(): void }
 export type ScreenFactory = (route: AppRoute) => ScreenHandle
 
 export function createApp(root: HTMLElement, createScreen: ScreenFactory) {
@@ -12,6 +12,7 @@ export function createApp(root: HTMLElement, createScreen: ScreenFactory) {
     active?.destroy()
     active = createScreen(parseHash(window.location.hash))
     root.replaceChildren(active.element)
+    active.mount?.()
   }
 
   return {

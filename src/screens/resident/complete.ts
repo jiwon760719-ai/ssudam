@@ -21,7 +21,7 @@ export function renderResidentComplete(dependencies: CompleteDependencies) {
       <div class="success-check" aria-hidden="true">✓</div>
       <h1 id="complete-title">제보 완료</h1>
       <p>소중한 제보가 접수되었습니다.</p>
-      <dl><dt>제보 번호</dt><dd>${report.id}</dd></dl>
+      <dl><dt>제보 번호</dt><dd data-report-id></dd></dl>
       <div class="admin-sync" role="status">
         <strong>관리자 지도에 반영됨</strong>
         <span>히트맵과 쓰레기통 추천 위치가 새 데이터로 갱신됩니다.</span>
@@ -30,6 +30,7 @@ export function renderResidentComplete(dependencies: CompleteDependencies) {
       <button data-action="another" type="button">다른 제보하기</button>
     </section>
   `
+  element.querySelector<HTMLElement>('[data-report-id]')!.textContent = report.id
   element.querySelector('[data-action="home"]')
     ?.addEventListener('click', () => dependencies.navigate({ name: 'home' }))
   element.querySelector('[data-action="another"]')

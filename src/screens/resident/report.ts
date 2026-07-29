@@ -3,7 +3,7 @@ import { CITY_OPTIONS, getCity } from '../../data/cities'
 import { validateReportDraft } from '../../domain/report-validation'
 import { compressImage } from '../../domain/image-compression'
 import type { ReportRepository } from '../../domain/models'
-import type { Coordinates, MapFactory } from '../../map/map-types'
+import type { Coordinates, MapAdapter, MapFactory } from '../../map/map-types'
 import './resident.css'
 
 type ResidentDependencies = {
@@ -20,6 +20,10 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
   let location: Coordinates | undefined
   let photoDataUrl = ''
   let submitting = false
+  let destroyed = false
+  let imageGeneration = 0
+  let map: MapAdapter | undefined
+  let unlistenMap: (() => void) | undefined
   const element = document.createElement('main')
   element.className = 'resident-screen'
   element.innerHTML = `
@@ -66,16 +70,9 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
   const compression = element.querySelector<HTMLElement>('[data-compression]')!
   const submitButton = form.querySelector<HTMLButtonElement>('[type="submit"]')!
 
-  const map = dependencies.mapFactory(mapContainer, {
-    center: INITIAL_LOCATION,
-    zoom: 11,
-    onTileError(message) { summary.textContent = message },
-    onTileReady() {},
-  })
-
   const renderLocation = (next: Coordinates) => {
     location = next
-    map.setSelectedLocation(next)
+    map?.setSelectedLocation(next)
     summary.textContent = `선택 위치: ${next.latitude.toFixed(5)}, ${next.longitude.toFixed(5)}`
     renderErrors({ location: undefined })
   }
@@ -87,12 +84,10 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
     }
   }
 
-  const unlistenMap = map.onMapClick(renderLocation)
-
   citySelect.addEventListener('change', () => {
     const city = getCity(citySelect.value)
     if (!city) return
-    map.setView({ latitude: city.centerLatitude, longitude: city.centerLongitude }, city.defaultZoom)
+    map?.setView({ latitude: city.centerLatitude, longitude: city.centerLongitude }, city.defaultZoom)
     renderErrors({ cityCode: undefined })
   })
 
@@ -103,25 +98,33 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
     }
     summary.textContent = '현재 위치를 확인하고 있습니다…'
     dependencies.geolocation.getCurrentPosition(
-      ({ coords }) => renderLocation({ latitude: coords.latitude, longitude: coords.longitude }),
-      () => { summary.textContent = '위치 권한을 사용할 수 없습니다. 지도에서 직접 선택해 주세요.' },
+      ({ coords }) => {
+        if (!destroyed) renderLocation({ latitude: coords.latitude, longitude: coords.longitude })
+      },
+      () => {
+        if (!destroyed) summary.textContent = '위치 권한을 사용할 수 없습니다. 지도에서 직접 선택해 주세요.'
+      },
       { enableHighAccuracy: true, timeout: 10_000 },
     )
   })
 
   photoInput.addEventListener('change', async () => {
+    const currentGeneration = ++imageGeneration
     const file = photoInput.files?.[0]
     photoDataUrl = ''
     preview.hidden = true
     if (!file) return
     compression.textContent = '사진을 제출용으로 압축하고 있습니다…'
     try {
-      photoDataUrl = await dependencies.imageCompressor(file)
-      preview.src = photoDataUrl
+      const compressed = await dependencies.imageCompressor(file)
+      if (destroyed || currentGeneration !== imageGeneration) return
+      photoDataUrl = compressed
+      preview.src = compressed
       preview.hidden = false
       compression.textContent = '사진 압축이 완료되었습니다.'
       renderErrors({ photoDataUrl: undefined })
     } catch {
+      if (destroyed || currentGeneration !== imageGeneration) return
       compression.textContent = '사진을 처리하지 못했습니다. 다른 이미지를 선택해 주세요.'
     }
   })
@@ -150,9 +153,24 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
 
   return {
     element,
+    mount() {
+      if (destroyed || map || !element.isConnected) return
+      map = dependencies.mapFactory(mapContainer, {
+        center: INITIAL_LOCATION,
+        zoom: 11,
+        onTileError(message) { summary.textContent = message },
+        onTileReady() {},
+      })
+      unlistenMap = map.onMapClick(renderLocation)
+    },
     destroy() {
-      unlistenMap()
-      map.destroy()
+      if (destroyed) return
+      destroyed = true
+      imageGeneration += 1
+      unlistenMap?.()
+      map?.destroy()
+      unlistenMap = undefined
+      map = undefined
     },
   }
 }

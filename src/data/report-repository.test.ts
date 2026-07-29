@@ -51,6 +51,40 @@ describe('report repository', () => {
     repository.destroy()
   })
 
+  it('rejects an initial stored report outside Korean coordinate bounds', () => {
+    const seedRepository = createReportRepository({ storage: localStorage })
+    const state = seedRepository.getState()
+    seedRepository.destroy()
+    localStorage.setItem('ssudam:data:v1', JSON.stringify({
+      ...state,
+      reports: [{ ...state.reports[0], latitude: 999 }],
+    }))
+
+    const repository = createReportRepository({ storage: localStorage })
+
+    expect(repository.getLastWarning()).toBe('corrupt-data')
+    expect(repository.getState().reports).toHaveLength(state.reports.length)
+    repository.destroy()
+  })
+
+  it('accepts stored report and bin coordinates on Korean boundary values', () => {
+    const seedRepository = createReportRepository({ storage: localStorage })
+    const state = seedRepository.getState()
+    seedRepository.destroy()
+    const bounded = {
+      ...state,
+      reports: [{ ...state.reports[0], latitude: 33, longitude: 124 }],
+      bins: [{ ...state.bins[0], latitude: 39, longitude: 132 }],
+    }
+    localStorage.setItem('ssudam:data:v1', JSON.stringify(bounded))
+
+    const repository = createReportRepository({ storage: localStorage })
+
+    expect(repository.getLastWarning()).toBeUndefined()
+    expect(repository.getState()).toEqual(bounded)
+    repository.destroy()
+  })
+
   it('falls back to seed data when storage access is unavailable', () => {
     const storage = {
       getItem: () => {
@@ -174,6 +208,26 @@ describe('report repository', () => {
     }))
 
     expect(repository.getState().reports).toEqual(before)
+    expect(listener).not.toHaveBeenCalled()
+    repository.destroy()
+  })
+
+  it('rejects a cross-tab stored bin outside Korean coordinate bounds', () => {
+    const listener = vi.fn()
+    const repository = createReportRepository({ storage: localStorage })
+    repository.subscribe(listener)
+    const before = repository.getState()
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ssudam:data:v1',
+      newValue: JSON.stringify({
+        ...before,
+        bins: [{ ...before.bins[0], longitude: 999 }],
+      }),
+      storageArea: localStorage,
+    }))
+
+    expect(repository.getState()).toEqual(before)
     expect(listener).not.toHaveBeenCalled()
     repository.destroy()
   })

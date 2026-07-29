@@ -29,8 +29,15 @@ export function createReportRepository(options: Options = {}): ReportRepository 
     return typeof value === 'string' && value.length > 0
   }
 
-  function isFiniteCoordinate(value: unknown): value is number {
-    return typeof value === 'number' && Number.isFinite(value)
+  function isKoreanCoordinates(latitude: unknown, longitude: unknown): boolean {
+    return typeof latitude === 'number'
+      && Number.isFinite(latitude)
+      && latitude >= 33
+      && latitude <= 39
+      && typeof longitude === 'number'
+      && Number.isFinite(longitude)
+      && longitude >= 124
+      && longitude <= 132
   }
 
   function isWasteReport(value: unknown): value is WasteReport {
@@ -38,8 +45,7 @@ export function createReportRepository(options: Options = {}): ReportRepository 
     return isNonEmptyString(value.id)
       && isNonEmptyString(value.cityCode)
       && isNonEmptyString(value.cityName)
-      && isFiniteCoordinate(value.latitude)
-      && isFiniteCoordinate(value.longitude)
+      && isKoreanCoordinates(value.latitude, value.longitude)
       && isNonEmptyString(value.createdAt)
       && isNonEmptyString(value.photoDataUrl)
       && (value.source === 'seed' || value.source === 'resident')
@@ -50,8 +56,7 @@ export function createReportRepository(options: Options = {}): ReportRepository 
     if (!isRecord(value)) return false
     return isNonEmptyString(value.id)
       && isNonEmptyString(value.cityCode)
-      && isFiniteCoordinate(value.latitude)
-      && isFiniteCoordinate(value.longitude)
+      && isKoreanCoordinates(value.latitude, value.longitude)
   }
 
   function isValidState(value: unknown): value is AppDataState {

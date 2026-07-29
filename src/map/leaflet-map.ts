@@ -1,5 +1,5 @@
 import 'leaflet/dist/leaflet.css'
-import * as L from 'leaflet'
+import L from 'leaflet'
 import 'leaflet.heat'
 import './map.css'
 import type { HeatPoint } from '../analytics/recommendations'
@@ -25,7 +25,9 @@ function createTileLayer(onError: (message: string) => void, onReady: () => void
     reportedError = true
     onError(TILE_ERROR_MESSAGE)
   })
-  layer.on('load', onReady)
+  layer.on('load', () => {
+    if (!reportedError) onReady()
+  })
 
   return layer
 }

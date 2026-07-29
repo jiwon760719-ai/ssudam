@@ -26,7 +26,7 @@ export function renderResidentComplete(dependencies: CompleteDependencies) {
         <strong>관리자 지도에 반영됨</strong>
         <span>히트맵과 쓰레기통 추천 위치가 새 데이터로 갱신됩니다.</span>
       </div>
-      <button data-action="home" type="button">처음으로 돌아가기</button>
+      <button data-action="home" type="button">홈으로 돌아가기</button>
       <button data-action="another" type="button">다른 제보하기</button>
     </section>
   `

@@ -115,7 +115,7 @@ it('keeps map selection available when geolocation permission is rejected', () =
 
   screen.element.querySelector<HTMLElement>('[data-action="geolocation"]')?.click()
   expect(screen.element.querySelector('[data-location]')?.textContent)
-    .toContain('위치 권한을 사용할 수 없습니다. 지도에서 직접 선택해 주세요.')
+    .toContain('지도에서 직접 선택해주세요.')
   map.click(37.5665, 126.978)
 
   expect(screen.element.querySelector('[data-location]')?.textContent)

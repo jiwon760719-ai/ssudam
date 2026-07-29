@@ -35,7 +35,7 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
       <p class="storage-warning" data-storage-warning aria-live="polite" hidden></p>
       <form novalidate>
         <div class="field">
-          <label for="city-code">지역 선택</label>
+          <label for="city-code">시 선택</label>
           <select id="city-code" name="cityCode" aria-describedby="city-error">
             <option value="">시·군·구를 선택하세요</option>
             ${CITY_OPTIONS.map((city) => `<option value="${city.code}">${city.provinceName} ${city.name}</option>`).join('')}
@@ -49,14 +49,14 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
           <p class="field-error" data-error="location" aria-live="polite"></p>
         </div>
         <div class="field">
-          <label for="photo">현장 사진</label>
+          <label for="photo">쓰레기 사진</label>
           <input id="photo" name="photo" type="file" accept="image/*" aria-describedby="photo-error compression-status">
           <p id="compression-status" class="compression-status" data-compression aria-live="polite"></p>
           <img class="photo-preview" data-preview alt="선택한 제보 사진 미리보기" hidden>
           <p id="photo-error" class="field-error" data-error="photoDataUrl" aria-live="polite"></p>
         </div>
-        <div class="field"><label for="note">메모 <span class="optional">(선택)</span></label><textarea id="note" name="note" rows="3" placeholder="예: 골목 입구 전봇대 옆"></textarea></div>
-        <button class="submit-button" type="submit">제보 보내기</button>
+        <div class="field"><label for="note">메모 <span class="optional" aria-hidden="true">(선택)</span></label><textarea id="note" name="note" rows="3" placeholder="예: 골목 입구 전봇대 옆"></textarea></div>
+        <button class="submit-button" type="submit">제보하기</button>
       </form>
     </section>
   `
@@ -95,7 +95,7 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
 
   element.querySelector('[data-action="geolocation"]')?.addEventListener('click', () => {
     if (!dependencies.geolocation) {
-      summary.textContent = '위치 권한을 사용할 수 없습니다. 지도에서 직접 선택해 주세요.'
+      summary.textContent = '지도에서 직접 선택해주세요.'
       return
     }
     summary.textContent = '현재 위치를 확인하고 있습니다…'
@@ -104,7 +104,7 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
         if (!destroyed) renderLocation({ latitude: coords.latitude, longitude: coords.longitude })
       },
       () => {
-        if (!destroyed) summary.textContent = '위치 권한을 사용할 수 없습니다. 지도에서 직접 선택해 주세요.'
+        if (!destroyed) summary.textContent = '지도에서 직접 선택해주세요.'
       },
       { enableHighAccuracy: true, timeout: 10_000 },
     )

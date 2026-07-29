@@ -3,8 +3,9 @@ import type { MapAdapter, MapFactory } from '../map/map-types'
 
 export function createMapFactoryFake() {
   let clickListener: ((location: { latitude: number; longitude: number }) => void) | undefined
+  const setViews: Array<{ center: { latitude: number; longitude: number }; zoom: number }> = []
   const adapter: MapAdapter = {
-    setView() {},
+    setView(center, zoom) { setViews.push({ center, zoom }) },
     setSelectedLocation() {},
     onMapClick(listener) {
       clickListener = listener
@@ -23,11 +24,14 @@ export function createMapFactoryFake() {
     click(latitude: number, longitude: number) {
       clickListener?.({ latitude, longitude })
     },
+    setViews,
   }
 }
 
-export function createRepositoryFake(initial: AppDataState): ReportRepository {
+export function createRepositoryFake(initial: AppDataState): ReportRepository & { listenerCount(): number } {
   let state = structuredClone(initial)
+  const listeners = new Set<(state: AppDataState) => void>()
+  const notify = () => listeners.forEach((listener) => listener(structuredClone(state)))
   return {
     getState: () => structuredClone(state),
     getReport: (id) => state.reports.find((report) => report.id === id),
@@ -38,15 +42,21 @@ export function createRepositoryFake(initial: AppDataState): ReportRepository {
         createdAt: '2026-07-29T03:00:00.000Z',
         source: 'resident' as const,
       }
-      state.reports.push(report)
+      state = { ...state, reports: [...state.reports, report] }
+      notify()
       return report
     },
     reset() {
       state = structuredClone(initial)
+      notify()
       return structuredClone(state)
     },
-    subscribe: () => () => undefined,
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
     getLastWarning: () => undefined,
     destroy() {},
+    listenerCount: () => listeners.size,
   }
 }

@@ -22,7 +22,8 @@ type AdminViewModel = {
   candidates: BinCandidate[]
 }
 
-const DEFAULT_CENTER = { latitude: 37.5665, longitude: 126.978 }
+const NATIONAL_CENTER = { latitude: 36.35, longitude: 127.8 }
+const NATIONAL_ZOOM = 7
 
 export function filterReports(reports: WasteReport[], filters: AdminFilters, now: Date): WasteReport[] {
   const threshold = new Date(now)
@@ -222,10 +223,13 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
     renderCandidateList(candidateList, view.candidates)
     renderLatestReport(latestReport, view.reports)
     emptyState.hidden = view.reports.length !== 0
-    if (filters.cityCode !== 'all') {
-      const city = getCity(filters.cityCode)
-      if (city) map?.setView({ latitude: city.centerLatitude, longitude: city.centerLongitude }, city.defaultZoom)
-    }
+    const city = filters.cityCode === 'all' ? undefined : getCity(filters.cityCode)
+    map?.setView(
+      city
+        ? { latitude: city.centerLatitude, longitude: city.centerLongitude }
+        : NATIONAL_CENTER,
+      city?.defaultZoom ?? NATIONAL_ZOOM,
+    )
   }
 
   const onCityChange = () => {
@@ -264,8 +268,8 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
     mount() {
       if (destroyed || map || !element.isConnected) return
       map = dependencies.mapFactory(mapContainer, {
-        center: DEFAULT_CENTER,
-        zoom: 7,
+        center: NATIONAL_CENTER,
+        zoom: NATIONAL_ZOOM,
         onTileError(message) { mapStatus.textContent = message },
         onTileReady() { mapStatus.textContent = '' },
       })

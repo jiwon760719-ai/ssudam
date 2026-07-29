@@ -19,6 +19,8 @@ export function validateReportDraft(draft: Draft): Result {
   if (
     draft.latitude === undefined ||
     draft.longitude === undefined ||
+    !Number.isFinite(draft.latitude) ||
+    !Number.isFinite(draft.longitude) ||
     draft.latitude < 33 ||
     draft.latitude > 39 ||
     draft.longitude < 124 ||
@@ -26,7 +28,7 @@ export function validateReportDraft(draft: Draft): Result {
   ) {
     errors.location = '吏?꾩뿉???쒕낫 ?꾩튂瑜??좏깮?댁＜?몄슂.'
   }
-  if (!draft.photoDataUrl.startsWith('data:image/')) {
+  if (!/^data:image\/[^;,]+(?:;[^,]*)?,.+$/.test(draft.photoDataUrl)) {
     errors.photoDataUrl = '?곕젅湲??ъ쭊??異붽??댁＜?몄슂.'
   }
   if (Object.keys(errors).length > 0 || !city) return { ok: false, errors }

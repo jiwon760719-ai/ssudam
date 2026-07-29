@@ -41,6 +41,16 @@ describe('report repository', () => {
     expect(repository.getLastWarning()).toBe('corrupt-data')
   })
 
+  it('keeps a corrupt-data warning after replacing recovery state successfully', () => {
+    localStorage.setItem('ssudam:data:v1', '{invalid')
+    const repository = createReportRepository({ storage: localStorage })
+
+    repository.addReport(input)
+
+    expect(repository.getLastWarning()).toBe('corrupt-data')
+    repository.destroy()
+  })
+
   it('falls back to seed data when storage access is unavailable', () => {
     const storage = {
       getItem: () => {
@@ -143,11 +153,61 @@ describe('report repository', () => {
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'ssudam:data:v1',
       newValue: JSON.stringify(next),
+      storageArea: localStorage,
     }))
 
     expect(repository.getState().reports).toEqual([])
     expect(listener).toHaveBeenCalled()
     repository.destroy()
+  })
+
+  it('does not synchronize same-key events from a different storage area', () => {
+    const listener = vi.fn()
+    const repository = createReportRepository({ storage: localStorage })
+    repository.subscribe(listener)
+    const before = repository.getState().reports
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ssudam:data:v1',
+      newValue: JSON.stringify({ ...repository.getState(), reports: [] }),
+      storageArea: sessionStorage,
+    }))
+
+    expect(repository.getState().reports).toEqual(before)
+    expect(listener).not.toHaveBeenCalled()
+    repository.destroy()
+  })
+
+  it('clears a write warning after a later successful persistence', () => {
+    let writes = 0
+    let persisted: string | null = null
+    const listener = vi.fn()
+    const storage = {
+      getItem: () => null,
+      setItem(_key: string, value: string) {
+        writes += 1
+        if (writes === 1) throw new DOMException('quota', 'QuotaExceededError')
+        persisted = value
+      },
+      removeItem() {},
+      clear() {},
+      key: () => null,
+      length: 0,
+    } satisfies Storage
+    const repository = createReportRepository({
+      storage,
+      idFactory: () => `MEMORY-${writes + 1}`,
+    })
+    repository.subscribe(listener)
+    const initialReportCount = repository.getState().reports.length
+
+    repository.addReport(input)
+    repository.addReport(input)
+
+    expect(repository.getLastWarning()).toBeUndefined()
+    expect(repository.getState().reports).toHaveLength(initialReportCount + 2)
+    expect(JSON.parse(persisted!).reports).toHaveLength(initialReportCount + 2)
+    expect(listener).toHaveBeenCalledTimes(2)
   })
 
   it('ignores invalid storage events and stops synchronizing after destroy', () => {
@@ -157,11 +217,17 @@ describe('report repository', () => {
     const next = { ...repository.getState(), reports: [] }
 
     window.dispatchEvent(new StorageEvent('storage', { key: 'other-key', newValue: JSON.stringify(next) }))
-    window.dispatchEvent(new StorageEvent('storage', { key: 'ssudam:data:v1', newValue: null }))
-    window.dispatchEvent(new StorageEvent('storage', { key: 'ssudam:data:v1', newValue: '{invalid' }))
+    window.dispatchEvent(new StorageEvent('storage', { key: 'ssudam:data:v1', newValue: null, storageArea: localStorage }))
+    window.dispatchEvent(new StorageEvent('storage', { key: 'ssudam:data:v1', newValue: '{invalid', storageArea: localStorage }))
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'ssudam:data:v1',
       newValue: JSON.stringify({ version: 2, reports: [], bins: [] }),
+      storageArea: localStorage,
+    }))
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ssudam:data:v1',
+      newValue: JSON.stringify({ version: 1, reports: [null], bins: [] }),
+      storageArea: localStorage,
     }))
 
     expect(listener).not.toHaveBeenCalled()
@@ -169,6 +235,7 @@ describe('report repository', () => {
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'ssudam:data:v1',
       newValue: JSON.stringify(next),
+      storageArea: localStorage,
     }))
 
     expect(listener).not.toHaveBeenCalled()

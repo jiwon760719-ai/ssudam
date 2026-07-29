@@ -98,6 +98,10 @@ it('keeps dashboard data available and retries tiles after a map tile error', ()
   expect(retry).not.toBeNull()
   retry?.click()
   expect(map.retryTileCalls()).toBe(1)
+
+  map.tileReady()
+  expect(screen.element.querySelector('[data-map-status]')?.textContent).toBe('')
+  expect(retry?.hidden).toBe(true)
 })
 
 it('resets demo data only after the reset dialog is confirmed', () => {

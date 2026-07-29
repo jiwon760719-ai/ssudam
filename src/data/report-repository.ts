@@ -1,5 +1,6 @@
 import type {
   AppDataState,
+  ExistingBin,
   ReportRepository,
   WasteReport,
 } from '../domain/models'
@@ -20,12 +21,44 @@ export function createReportRepository(options: Options = {}): ReportRepository 
   let warning: ReturnType<ReportRepository['getLastWarning']>
   let state = readInitial()
 
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null
+  }
+
+  function isNonEmptyString(value: unknown): value is string {
+    return typeof value === 'string' && value.length > 0
+  }
+
+  function isFiniteCoordinate(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value)
+  }
+
+  function isWasteReport(value: unknown): value is WasteReport {
+    if (!isRecord(value)) return false
+    return isNonEmptyString(value.id)
+      && isNonEmptyString(value.cityCode)
+      && isNonEmptyString(value.cityName)
+      && isFiniteCoordinate(value.latitude)
+      && isFiniteCoordinate(value.longitude)
+      && isNonEmptyString(value.createdAt)
+      && isNonEmptyString(value.photoDataUrl)
+      && (value.source === 'seed' || value.source === 'resident')
+      && (value.note === undefined || typeof value.note === 'string')
+  }
+
+  function isExistingBin(value: unknown): value is ExistingBin {
+    if (!isRecord(value)) return false
+    return isNonEmptyString(value.id)
+      && isNonEmptyString(value.cityCode)
+      && isFiniteCoordinate(value.latitude)
+      && isFiniteCoordinate(value.longitude)
+  }
+
   function isValidState(value: unknown): value is AppDataState {
-    return typeof value === 'object'
-      && value !== null
-      && (value as AppDataState).version === 1
-      && Array.isArray((value as AppDataState).reports)
-      && Array.isArray((value as AppDataState).bins)
+    if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.reports) || !Array.isArray(value.bins)) {
+      return false
+    }
+    return value.reports.every(isWasteReport) && value.bins.every(isExistingBin)
   }
 
   function readInitial(): AppDataState {
@@ -57,6 +90,9 @@ export function createReportRepository(options: Options = {}): ReportRepository 
     if (!options.storage) return
     try {
       options.storage.setItem(STORAGE_KEY, JSON.stringify(state))
+      if (warning === 'storage-quota' || warning === 'storage-unavailable') {
+        warning = undefined
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
         warning = 'storage-quota'
@@ -71,7 +107,7 @@ export function createReportRepository(options: Options = {}): ReportRepository 
   }
 
   const onStorage = (event: StorageEvent) => {
-    if (event.key !== STORAGE_KEY || event.newValue === null) return
+    if (event.key !== STORAGE_KEY || event.storageArea !== options.storage || event.newValue === null) return
     try {
       const parsed: unknown = JSON.parse(event.newValue)
       if (!isValidState(parsed)) return

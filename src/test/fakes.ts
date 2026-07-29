@@ -4,6 +4,7 @@ import type { MapAdapter, MapFactory } from '../map/map-types'
 export function createMapFactoryFake() {
   let clickListener: ((location: { latitude: number; longitude: number }) => void) | undefined
   let tileErrorListener: ((message: string) => void) | undefined
+  let tileReadyListener: (() => void) | undefined
   let retryTileCalls = 0
   const setViews: Array<{ center: { latitude: number; longitude: number }; zoom: number }> = []
   const adapter: MapAdapter = {
@@ -24,6 +25,7 @@ export function createMapFactoryFake() {
   return {
     factory: ((_, options) => {
       tileErrorListener = options.onTileError
+      tileReadyListener = options.onTileReady
       return adapter
     }) as MapFactory,
     click(latitude: number, longitude: number) {
@@ -32,6 +34,9 @@ export function createMapFactoryFake() {
     setViews,
     tileError(message: string) {
       tileErrorListener?.(message)
+    },
+    tileReady() {
+      tileReadyListener?.()
     },
     retryTileCalls: () => retryTileCalls,
   }
@@ -43,7 +48,10 @@ export function createRepositoryFake(initial: AppDataState): ReportRepository & 
   const notify = () => listeners.forEach((listener) => listener(structuredClone(state)))
   return {
     getState: () => structuredClone(state),
-    getReport: (id) => state.reports.find((report) => report.id === id),
+    getReport: (id) => {
+      const report = state.reports.find((candidate) => candidate.id === id)
+      return report && structuredClone(report)
+    },
     addReport(input) {
       const report = {
         ...input,
@@ -53,7 +61,7 @@ export function createRepositoryFake(initial: AppDataState): ReportRepository & 
       }
       state = { ...state, reports: [...state.reports, report] }
       notify()
-      return report
+      return structuredClone(report)
     },
     reset() {
       state = structuredClone(initial)

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { AppDataState } from '../domain/models'
 import { createReportRepository } from './report-repository'
 
 const input = {
@@ -63,5 +64,50 @@ describe('report repository', () => {
     repository.addReport(input)
 
     expect(repository.reset().reports.map((report) => report.id)).toEqual(before)
+  })
+
+  it('does not expose mutable report state through public report boundaries', () => {
+    const listener = vi.fn()
+    const repository = createReportRepository({
+      storage: localStorage,
+      idFactory: () => 'BOUNDARY-1',
+    })
+    repository.subscribe(listener)
+
+    const added = repository.addReport(input)
+    added.note = 'returned report mutation'
+
+    const fetched = repository.getReport(added.id)!
+    fetched.note = 'fetched report mutation'
+
+    const emitted = listener.mock.calls[0][0] as AppDataState
+    emitted.reports.find((report) => report.id === added.id)!.note = 'listener state mutation'
+
+    expect(repository.getReport(added.id)?.note).toBe('학교 앞 쓰레기')
+  })
+
+  it('keeps report submission in memory when storage writes are unavailable', () => {
+    const listener = vi.fn()
+    const storage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new DOMException('blocked', 'SecurityError')
+      },
+      removeItem() {},
+      clear() {},
+      key: () => null,
+      length: 0,
+    } satisfies Storage
+    const repository = createReportRepository({
+      storage,
+      idFactory: () => 'MEMORY-1',
+    })
+    repository.subscribe(listener)
+
+    const report = repository.addReport(input)
+
+    expect(repository.getReport(report.id)).toEqual(report)
+    expect(listener).toHaveBeenCalledOnce()
+    expect(repository.getLastWarning()).toBe('storage-unavailable')
   })
 })

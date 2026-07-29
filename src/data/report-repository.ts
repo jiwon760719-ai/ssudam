@@ -47,16 +47,23 @@ export function createReportRepository(options: Options = {}): ReportRepository 
 
   function persist(): void {
     if (!options.storage) return
-    options.storage.setItem(STORAGE_KEY, JSON.stringify(state))
+    try {
+      options.storage.setItem(STORAGE_KEY, JSON.stringify(state))
+    } catch {
+      warning = 'storage-unavailable'
+    }
   }
 
   function emit(): void {
-    listeners.forEach((listener) => listener(state))
+    listeners.forEach((listener) => listener(structuredClone(state)))
   }
 
   return {
     getState: () => structuredClone(state),
-    getReport: (id) => state.reports.find((report) => report.id === id),
+    getReport: (id) => {
+      const report = state.reports.find((candidate) => candidate.id === id)
+      return report && structuredClone(report)
+    },
     addReport(input) {
       const report: WasteReport = {
         ...input,
@@ -67,7 +74,7 @@ export function createReportRepository(options: Options = {}): ReportRepository 
       state = { ...state, reports: [...state.reports, report] }
       persist()
       emit()
-      return report
+      return structuredClone(report)
     },
     reset() {
       state = createSeedState(now())

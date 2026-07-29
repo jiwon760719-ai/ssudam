@@ -24,6 +24,8 @@ test('resident report appears in the administrator portal', async ({ page }) => 
   await page.getByRole('button', { name: /주민으로 시작/ }).click()
   await page.getByLabel('시 선택').selectOption('11')
   await page.locator('.leaflet-container').click({ position: { x: 220, y: 180 } })
+  await expect(page.locator('.location-summary'))
+    .toHaveText(/^선택 위치: \d+\.\d{5}, \d+\.\d{5}$/)
   await page.getByLabel('쓰레기 사진').setInputFiles({
     name: 'waste.png',
     mimeType: 'image/png',
@@ -41,7 +43,7 @@ test('resident report appears in the administrator portal', async ({ page }) => 
 
   await expect(page.getByText('공모전 발표용 신규 제보')).toBeVisible()
   await expect(page.getByText('최신 제보')).toBeVisible()
-  await expect(page.locator('[data-metric="total"]')).not.toHaveText('0')
+  await expect(page.locator('[data-metric="total"]')).toHaveText('25')
   expect(consoleErrors).toEqual([])
 })
 
@@ -54,6 +56,9 @@ test('location denial falls back to map selection', async ({ browser }) => {
   await page.goto('http://127.0.0.1:4173/#/resident/report')
   await page.getByRole('button', { name: '현재 위치 사용' }).click()
   await expect(page.getByText('지도에서 직접 선택해주세요.')).toBeVisible()
+  await page.locator('.leaflet-container').click({ position: { x: 220, y: 180 } })
+  await expect(page.locator('.location-summary'))
+    .toHaveText(/^선택 위치: \d+\.\d{5}, \d+\.\d{5}$/)
   await context.close()
 })
 

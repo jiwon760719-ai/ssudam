@@ -12,6 +12,14 @@ npm run dev
 
 ## 검증
 
+최초 E2E 실행 전 Playwright Chromium을 한 번 설치합니다.
+
+```powershell
+npx playwright install chromium
+```
+
+이후 아래 명령으로 전체 검증을 반복 실행할 수 있습니다.
+
 ```powershell
 npm run test
 npm run test:e2e

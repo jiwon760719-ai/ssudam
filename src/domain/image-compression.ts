@@ -49,6 +49,6 @@ export async function compressImage(
     context.drawImage(image, 0, 0, size.width, size.height)
     return canvas.toDataURL('image/webp', options.quality ?? 0.72)
   } finally {
-    if (image instanceof ImageBitmap) image.close()
+    if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) image.close()
   }
 }

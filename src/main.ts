@@ -5,6 +5,7 @@ import { createReportRepository } from './data/report-repository'
 import { compressImage } from './domain/image-compression'
 import { createLeafletMap } from './map/leaflet-map'
 import { renderHome } from './screens/home/home'
+import { renderAdminDashboard } from './screens/admin/dashboard'
 import { renderResidentComplete } from './screens/resident/complete'
 import { renderResidentReport } from './screens/resident/report'
 
@@ -30,12 +31,8 @@ const createScreen: ScreenFactory = (route) => {
       })
     case 'resident-complete':
       return renderResidentComplete({ repository, reportId: route.reportId, navigate })
-    case 'admin': {
-      const element = document.createElement('main')
-      element.className = 'admin-placeholder'
-      element.innerHTML = '<p>관리자 데모 지도를 불러오는 중입니다.</p><a href="#/">처음으로</a>'
-      return { element, destroy() {} }
-    }
+    case 'admin':
+      return renderAdminDashboard({ repository, mapFactory: createLeafletMap, navigate })
   }
 }
 

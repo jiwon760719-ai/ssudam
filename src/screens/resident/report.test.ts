@@ -3,6 +3,21 @@ import { createApp } from '../../app/app'
 import { createRepositoryFake, createMapFactoryFake } from '../../test/fakes'
 import { renderResidentReport } from './report'
 
+it('renders the approved resident form hierarchy', () => {
+  const screen = renderResidentReport({
+    repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),
+    mapFactory: createMapFactoryFake().factory,
+    imageCompressor: vi.fn(),
+    navigate() {},
+  })
+
+  expect(screen.element.querySelector('.app-bar')).not.toBeNull()
+  expect(screen.element.querySelector('.flow-progress')).not.toBeNull()
+  expect(screen.element.querySelectorAll('.form-section')).toHaveLength(3)
+  expect(screen.element.querySelector('.resident-map-surface [data-map]')).not.toBeNull()
+  expect(screen.element.querySelector('.submit-button')?.textContent).toContain('제보하기')
+})
+
 it('shows readable Korean errors for every missing required field', () => {
   const screen = renderResidentReport({
     repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),

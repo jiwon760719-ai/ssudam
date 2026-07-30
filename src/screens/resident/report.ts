@@ -25,46 +25,76 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
   let imageGeneration = 0
   let map: MapAdapter | undefined
   let unlistenMap: (() => void) | undefined
-  const element = document.createElement('main')
-  element.className = 'resident-screen'
+  const element = document.createElement('div')
+  element.className = 'resident-page'
   element.innerHTML = `
-    <section class="resident-panel" aria-labelledby="report-title">
-      <a class="back-link" href="#/">← 처음으로</a>
-      <p class="eyebrow">주민 제보</p>
-      <h1 id="report-title">쓰레기를 발견하셨나요?</h1>
-      <p class="screen-intro">사진과 위치를 남겨 주시면 관리자 지도에 바로 반영됩니다.</p>
-      <div class="storage-warning" data-corrupt-warning role="alert" hidden>
-        <p>저장된 데이터가 손상되어 안전한 초기 샘플로 복구했습니다.</p>
-        <button type="button" data-action="reset-corrupt">손상된 데이터 초기화</button>
+    <header class="app-bar resident-app-bar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">쓰</span>
+        <span>쓰담쓰담</span>
       </div>
-      <form novalidate>
-        <div class="field">
-          <label for="city-code">시 선택</label>
-          <select id="city-code" name="cityCode" aria-describedby="city-error">
-            <option value="">시·군·구를 선택하세요</option>
-            ${CITY_OPTIONS.map((city) => `<option value="${city.code}">${city.provinceName} ${city.name}</option>`).join('')}
-          </select>
-          <p id="city-error" class="field-error" data-error="cityCode" aria-live="polite"></p>
+      <a class="button button--text back-link" href="#/">처음으로</a>
+    </header>
+    <main class="resident-screen">
+      <section class="resident-panel" aria-labelledby="report-title">
+        <div class="resident-heading">
+          <p class="eyebrow">주민 제보</p>
+          <h1 id="report-title">쓰레기를 발견하셨나요?</h1>
+          <p class="screen-intro">사진과 위치를 남겨 주시면 관리자 지도에 바로 반영됩니다.</p>
+          <div class="flow-progress" aria-hidden="true"><span></span></div>
         </div>
-        <div class="field">
-          <div class="field-label-row"><label>발견 위치</label><span class="location-actions"><button class="text-button" data-action="geolocation" type="button">현재 위치 사용</button><button class="text-button" data-action="use-city-center" type="button">선택한 시 중심 사용</button></span></div>
-          <p class="location-summary" data-location aria-live="polite">지도에서 위치를 선택해 주세요.</p>
-          <div class="resident-map" data-map aria-label="제보 위치 선택 지도"></div>
-          <p class="map-status" data-map-status aria-live="polite"></p>
-          <button type="button" class="tile-retry" data-action="retry-tiles" hidden>지도 다시 불러오기</button>
-          <p class="field-error" data-error="location" aria-live="polite"></p>
+        <div class="status-banner status-banner--warning storage-warning" data-corrupt-warning role="alert" hidden>
+          <p>저장된 데이터가 손상되어 안전한 초기 샘플로 복구했습니다.</p>
+          <button class="button button--filled" type="button" data-action="reset-corrupt">손상된 데이터 초기화</button>
         </div>
-        <div class="field">
-          <label for="photo">쓰레기 사진</label>
-          <input id="photo" name="photo" type="file" accept="image/*" aria-describedby="photo-error compression-status">
-          <p id="compression-status" class="compression-status" data-compression aria-live="polite"></p>
-          <img class="photo-preview" data-preview alt="선택한 제보 사진 미리보기" hidden>
-          <p id="photo-error" class="field-error" data-error="photoDataUrl" aria-live="polite"></p>
-        </div>
-        <div class="field"><label for="note">메모 <span class="optional" aria-hidden="true">(선택)</span></label><textarea id="note" name="note" rows="3" placeholder="예: 골목 입구 전봇대 옆"></textarea></div>
-        <button class="submit-button" type="submit">제보하기</button>
-      </form>
-    </section>
+        <form novalidate>
+          <section class="form-section" aria-labelledby="city-section-title">
+            <h2 id="city-section-title">1. 지역 선택</h2>
+            <div class="field">
+              <label for="city-code">시 선택</label>
+              <select id="city-code" name="cityCode" aria-describedby="city-error">
+                <option value="">시를 선택해 주세요</option>
+                ${CITY_OPTIONS.map((city) => `<option value="${city.code}">${city.provinceName} ${city.name}</option>`).join('')}
+              </select>
+              <p id="city-error" class="field-error" data-error="cityCode" aria-live="polite"></p>
+            </div>
+          </section>
+          <section class="form-section" aria-labelledby="location-section-title">
+            <div class="section-title-row">
+              <h2 id="location-section-title">2. 발견 위치</h2>
+              <span class="location-actions">
+                <button class="button button--text" data-action="geolocation" type="button">현재 위치 사용</button>
+                <button class="button button--text" data-action="use-city-center" type="button">선택한 시 중심 사용</button>
+              </span>
+            </div>
+            <div class="resident-map-surface">
+              <p class="location-summary" data-location aria-live="polite">지도에서 위치를 선택해 주세요.</p>
+              <div class="resident-map" data-map aria-label="제보 위치 선택 지도"></div>
+              <div class="map-state-row">
+                <p class="map-status" data-map-status aria-live="polite"></p>
+                <button type="button" class="button button--tonal tile-retry" data-action="retry-tiles" hidden>지도 다시 불러오기</button>
+              </div>
+              <p class="field-error" data-error="location" aria-live="polite"></p>
+            </div>
+          </section>
+          <section class="form-section" aria-labelledby="detail-section-title">
+            <h2 id="detail-section-title">3. 사진과 메모</h2>
+            <div class="field">
+              <label for="photo">쓰레기 사진</label>
+              <input id="photo" name="photo" type="file" accept="image/*" aria-describedby="photo-error compression-status">
+              <p id="compression-status" class="compression-status" data-compression aria-live="polite"></p>
+              <img class="photo-preview" data-preview alt="선택한 제보 사진 미리보기" hidden>
+              <p id="photo-error" class="field-error" data-error="photoDataUrl" aria-live="polite"></p>
+            </div>
+            <div class="field">
+              <label for="note">메모 <span class="optional" aria-hidden="true">(선택)</span></label>
+              <textarea id="note" name="note" rows="3" placeholder="예: 골목 입구 전봇대 옆"></textarea>
+            </div>
+          </section>
+          <button class="button button--filled submit-button" type="submit">제보하기</button>
+        </form>
+      </section>
+    </main>
   `
 
   const form = element.querySelector('form')!

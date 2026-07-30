@@ -2,6 +2,25 @@ import { expect, it, vi } from 'vitest'
 import { createRepositoryFake } from '../../test/fakes'
 import { renderResidentComplete } from './complete'
 
+it('renders completion actions with filled and tonal hierarchy', () => {
+  const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
+  const report = repository.addReport({
+    cityCode: '11',
+    cityName: '서울특별시',
+    latitude: 37.5665,
+    longitude: 126.978,
+    photoDataUrl: 'data:image/webp;base64,AAAA',
+  })
+  const screen = renderResidentComplete({ repository, reportId: report.id, navigate() {} })
+
+  expect(screen.element.querySelector('[data-action="home"]')?.classList)
+    .toContain('button--filled')
+  expect(screen.element.querySelector('[data-action="another"]')?.classList)
+    .toContain('button--tonal')
+  expect(screen.element.querySelector('.admin-sync')?.textContent)
+    .toContain('관리자 지도에 반영됨')
+})
+
 it('shows 제보 완료 and administrator map synchronization copy', () => {
   const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
   const report = repository.addReport({

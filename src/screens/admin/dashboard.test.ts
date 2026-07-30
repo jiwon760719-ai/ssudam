@@ -1,6 +1,11 @@
 import { expect, it, vi } from 'vitest'
 import { createMapFactoryFake, createRepositoryFake } from '../../test/fakes'
+import adminCss from './admin.css?raw'
 import { renderAdminDashboard } from './dashboard'
+
+it('keeps map layer labels at least 44px tall for touch input', () => {
+  expect(adminCss).toMatch(/\.layer-controls label\s*\{[^}]*min-height:\s*44px/)
+})
 
 it('renders the approved dashboard hierarchy', () => {
   const screen = renderAdminDashboard({

@@ -176,43 +176,82 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
   let currentView: AdminViewModel = { reports: [], bins: [], candidates: [] }
   let unsubscribeMarkerSelection = () => {}
 
-  const element = document.createElement('main')
-  element.className = 'admin-dashboard'
+  const element = document.createElement('div')
+  element.className = 'admin-page'
   element.innerHTML = `
-    <header class="admin-header">
-      <a href="#/" class="back-link">처음으로</a>
-      <div><p class="eyebrow">실시간 데이터 분석</p><h1>쓰담쓰담 관리자</h1></div>
-      <button type="button" class="reset-trigger" data-action="open-reset">데모 데이터 초기화</button>
+    <header class="app-bar admin-app-bar">
+      <a class="brand" href="#/" aria-label="쓰담쓰담 홈">
+        <span class="brand-mark" aria-hidden="true">쓰</span>
+        <span>쓰담쓰담</span>
+      </a>
+      <span class="app-bar-label">관리자 데모</span>
     </header>
-    <div class="storage-warning" data-corrupt-warning role="alert" hidden>
-      <p>저장된 데이터가 손상되어 안전한 초기 샘플로 복구했습니다.</p>
-      <button type="button" data-action="reset-corrupt">손상된 데이터 초기화</button>
-    </div>
-    <section class="admin-controls" aria-label="대시보드 필터">
-      <label>지역 <select data-filter="city" aria-label="지역 선택"></select></label>
-      <label>기간 <select data-filter="days" aria-label="기간 선택"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option></select></label>
-      <fieldset class="layer-controls"><legend>지도 레이어</legend>
-        <label><input type="checkbox" data-layer="reports" checked> 제보</label>
-        <label><input type="checkbox" data-layer="heat" checked> 히트맵</label>
-        <label><input type="checkbox" data-layer="bins" checked> 기존 쓰레기통</label>
-        <label><input type="checkbox" data-layer="candidates" checked> 추천 위치</label>
-      </fieldset>
-    </section>
-    <section class="metric-grid" aria-label="요약 지표">
-      <article><span>전체 제보</span><strong data-metric="total">0</strong><small>선택 기간 기준</small></article>
-      <article><span>오늘 제보</span><strong data-metric="today">0</strong><small>오늘 접수된 건수</small></article>
-      <article><span>집중 관리 지역</span><strong data-metric="cities">0</strong><small>제보가 있는 시군구</small></article>
-      <article><span>설치 추천 위치</span><strong data-metric="candidates">0</strong><small>상위 3개 후보</small></article>
-    </section>
-    <section class="admin-content">
-      <div class="map-panel"><div class="admin-map" data-map aria-label="제보와 추천 위치 지도"></div><p class="map-status" data-map-status aria-live="polite"></p><button type="button" class="tile-retry" data-action="retry-tiles" hidden>지도 다시 불러오기</button></div>
-      <aside class="insight-panel">
-        <section aria-labelledby="candidate-title"><div class="section-heading"><div><p class="eyebrow">설명 가능한 점수</p><h2 id="candidate-title">추천 위치</h2></div><span class="score-legend">밀집도 70 · 반복 20 · 거리 10</span></div><div class="candidate-list" data-candidates></div></section>
-        <section class="latest-report" aria-labelledby="latest-title"><h2 id="latest-title">주민 제보 확인</h2><div data-latest></div></section>
-      </aside>
-    </section>
-    <section class="empty-state" data-empty hidden><h2>아직 수집된 제보가 없습니다</h2><p>지역과 기간을 바꾸거나 주민 제보를 기다려 주세요.</p></section>
-    <dialog data-reset-dialog aria-labelledby="reset-title"><form method="dialog"><h2 id="reset-title">데모 데이터를 초기화할까요?</h2><p>현재 저장된 제보와 쓰레기통 정보가 초기 샘플 데이터로 돌아갑니다.</p><menu><button value="cancel">취소</button><button value="confirm" data-action="confirm-reset">초기화</button></menu></form></dialog>
+    <main class="admin-dashboard">
+      <section class="dashboard-intro">
+        <div>
+          <p class="eyebrow">전국 환경 데이터</p>
+          <h1>쓰담쓰담 관리자</h1>
+          <p>주민 제보를 분석해 관리 우선순위와 쓰레기통 설치 후보를 확인합니다.</p>
+        </div>
+        <button type="button" class="button button--text reset-trigger" data-action="open-reset">데모 데이터 초기화</button>
+      </section>
+      <div class="status-banner status-banner--warning storage-warning" data-corrupt-warning role="alert" hidden>
+        <p>저장된 데이터가 손상되어 안전한 초기 샘플로 복구했습니다.</p>
+        <button class="button button--filled" type="button" data-action="reset-corrupt">손상된 데이터 초기화</button>
+      </div>
+      <section class="filter-toolbar" aria-label="대시보드 필터">
+        <div class="select-filters">
+          <label>지역 <select data-filter="city" aria-label="지역 선택"></select></label>
+          <label>기간 <select data-filter="days" aria-label="기간 선택"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option></select></label>
+        </div>
+        <fieldset class="layer-controls"><legend>지도 레이어</legend>
+          <label><input type="checkbox" data-layer="reports" checked> 제보</label>
+          <label><input type="checkbox" data-layer="heat" checked> 히트맵</label>
+          <label><input type="checkbox" data-layer="bins" checked> 기존 쓰레기통</label>
+          <label><input type="checkbox" data-layer="candidates" checked> 추천 위치</label>
+        </fieldset>
+      </section>
+      <section class="metric-grid" aria-label="요약 지표">
+        <article class="metric-card metric-card--primary"><span>전체 제보</span><strong data-metric="total">0</strong><small>선택 기간 기준</small></article>
+        <article class="metric-card"><span>오늘 제보</span><strong data-metric="today">0</strong><small>오늘 접수된 건수</small></article>
+        <article class="metric-card"><span>집중 관리 지역</span><strong data-metric="cities">0</strong><small>제보가 있는 시군구</small></article>
+        <article class="metric-card"><span>설치 추천 위치</span><strong data-metric="candidates">0</strong><small>상위 3개 후보</small></article>
+      </section>
+      <section class="admin-content">
+        <section class="map-panel" aria-labelledby="admin-map-title">
+          <div class="panel-heading">
+            <div><p class="eyebrow">실시간 밀집도</p><h2 id="admin-map-title">전국 제보 지도</h2></div>
+            <span class="map-helper">마커를 선택하면 상세 근거를 확인할 수 있어요.</span>
+          </div>
+          <div class="admin-map" data-map aria-label="제보와 추천 위치 지도"></div>
+          <div class="map-state-row">
+            <p class="map-status" data-map-status aria-live="polite"></p>
+            <button type="button" class="button button--tonal tile-retry" data-action="retry-tiles" hidden>지도 다시 불러오기</button>
+          </div>
+        </section>
+        <aside class="insight-panel">
+          <section aria-labelledby="candidate-title">
+            <div class="section-heading">
+              <div><p class="eyebrow">설명 가능한 점수</p><h2 id="candidate-title">추천 위치</h2></div>
+              <span class="score-legend">밀집도 70 · 반복 20 · 거리 10</span>
+            </div>
+            <div class="candidate-list" data-candidates></div>
+          </section>
+          <section class="latest-report" aria-labelledby="latest-title">
+            <h2 id="latest-title">주민 제보 확인</h2>
+            <div data-latest></div>
+          </section>
+        </aside>
+      </section>
+      <section class="empty-state" data-empty hidden><h2>아직 수집된 제보가 없습니다</h2><p>지역과 기간을 바꾸거나 주민 제보를 기다려 주세요.</p></section>
+      <dialog data-reset-dialog aria-labelledby="reset-title">
+        <form method="dialog">
+          <h2 id="reset-title">데모 데이터를 초기화할까요?</h2>
+          <p>현재 저장된 제보와 쓰레기통 정보가 초기 샘플 데이터로 돌아갑니다.</p>
+          <menu><button class="button button--text" value="cancel">취소</button><button class="button button--filled" value="confirm" data-action="confirm-reset">초기화</button></menu>
+        </form>
+      </dialog>
+    </main>
   `
 
   const citySelect = element.querySelector<HTMLSelectElement>('[data-filter="city"]')!

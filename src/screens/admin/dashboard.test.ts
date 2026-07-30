@@ -2,6 +2,34 @@ import { expect, it, vi } from 'vitest'
 import { createMapFactoryFake, createRepositoryFake } from '../../test/fakes'
 import { renderAdminDashboard } from './dashboard'
 
+it('renders the approved dashboard hierarchy', () => {
+  const screen = renderAdminDashboard({
+    repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),
+    mapFactory: createMapFactoryFake().factory,
+    navigate() {},
+  })
+
+  expect(screen.element.querySelector('.app-bar')).not.toBeNull()
+  expect(screen.element.querySelector('.dashboard-intro h1')?.textContent)
+    .toBe('쓰담쓰담 관리자')
+  expect(screen.element.querySelectorAll('.metric-card')).toHaveLength(4)
+  expect(screen.element.querySelectorAll('.metric-card--primary')).toHaveLength(1)
+  expect(screen.element.querySelector('.filter-toolbar')).not.toBeNull()
+  expect(screen.element.querySelector('.map-panel h2')?.textContent).toBe('전국 제보 지도')
+})
+
+it('links the administrator app-bar brand to home', () => {
+  const screen = renderAdminDashboard({
+    repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),
+    mapFactory: createMapFactoryFake().factory,
+    navigate() {},
+  })
+
+  expect(screen.element.querySelector(
+    '.admin-app-bar .brand[href="#/"][aria-label="쓰담쓰담 홈"]',
+  )).not.toBeNull()
+})
+
 it('includes a newly submitted resident report in metrics and candidate evidence', () => {
   const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
   repository.addReport({

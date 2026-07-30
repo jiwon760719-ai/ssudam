@@ -28,7 +28,7 @@
 }
 
 .eyebrow { margin: 0 0 1rem; color: var(--color-green-700); font-weight: 800; letter-spacing: .08em; }
-.screen-intro { max-width: 38rem; color: var(--color-muted); line-height: 1.7; }
+.screen-intro { max-width: 38rem; color: var(--md-secondary); line-height: 1.7; }
 .flow-progress { height: .35rem; margin-top: 1.5rem; overflow: hidden; background: var(--md-surface-variant); border-radius: 999px; }
 .flow-progress span { display: block; width: 33.333%; height: 100%; background: var(--md-secondary); border-radius: inherit; }
 
@@ -111,7 +111,7 @@
 
 .complete-screen > section > p:not(.eyebrow, .status-banner) { color: var(--color-muted); line-height: 1.6; }
 .report-id-row { padding: 1rem; background: var(--md-surface-variant); border-radius: var(--radius-control); text-align: left; }
-.report-id-row dt { color: var(--color-muted); font-size: .875rem; }
+.report-id-row dt { color: var(--md-ink); font-size: .875rem; }
 .report-id-row dd { margin: .25rem 0 0; color: var(--color-ink); font-weight: 800; overflow-wrap: anywhere; }
 .admin-sync { margin: 1.5rem 0; padding: 1rem; border: 1px solid var(--md-secondary); border-radius: var(--radius-control); text-align: left; }
 .admin-sync strong,

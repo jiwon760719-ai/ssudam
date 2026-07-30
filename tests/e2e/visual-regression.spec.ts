@@ -18,6 +18,15 @@ async function expectPageScreenshot(page: import('@playwright/test').Page, name:
   })
 }
 
+async function expectResidentTransientUiHidden(page: import('@playwright/test').Page) {
+  await expect(page.locator('[data-preview]')).toBeHidden()
+  await expect(page.locator('[data-action="retry-tiles"]')).toBeHidden()
+}
+
+async function expectAdminRetryHidden(page: import('@playwright/test').Page) {
+  await expect(page.locator('[data-action="retry-tiles"]')).toBeHidden()
+}
+
 test('desktop home visual', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await expectPageScreenshot(page, 'desktop-home.png')
@@ -26,6 +35,7 @@ test('desktop home visual', async ({ page }) => {
 test('desktop resident visual', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('#/resident/report')
+  await expectResidentTransientUiHidden(page)
   await expectPageScreenshot(page, 'desktop-resident.png')
 })
 
@@ -46,6 +56,7 @@ test('desktop completion visual', async ({ page }) => {
 test('desktop admin visual', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('#/admin')
+  await expectAdminRetryHidden(page)
   await expectPageScreenshot(page, 'desktop-admin.png')
 })
 
@@ -57,6 +68,8 @@ for (const screen of [
   test(screen.name, async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 })
     await page.goto(screen.path)
+    if (screen.path === '#/resident/report') await expectResidentTransientUiHidden(page)
+    if (screen.path === '#/admin') await expectAdminRetryHidden(page)
     await expectPageScreenshot(page, screen.name)
   })
 }

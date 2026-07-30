@@ -32,7 +32,7 @@
 }
 
 .admin-app-bar .app-bar-label {
-  color: var(--md-muted);
+  color: var(--md-secondary);
   font-size: .875rem;
 }
 
@@ -74,7 +74,7 @@
 .dashboard-intro > div > p:last-child {
   max-width: 44rem;
   margin-bottom: 0;
-  color: var(--md-muted);
+  color: var(--md-secondary);
   line-height: 1.65;
   word-break: keep-all;
 }
@@ -353,7 +353,7 @@
 }
 
 .candidate-card dt {
-  color: var(--md-muted);
+  color: var(--md-ink);
 }
 
 .candidate-card dd {

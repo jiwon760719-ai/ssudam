@@ -6,10 +6,10 @@ export function renderHome({ navigate }: { navigate(route: AppRoute): void }) {
   element.className = 'home-page'
   element.innerHTML = `
     <header class="app-bar home-app-bar">
-      <a class="brand" href="#/" aria-label="쓰담쓰담 홈" tabindex="-1">
+      <div class="brand">
         <span class="brand-mark" aria-hidden="true">쓰</span>
         <span>쓰담쓰담</span>
-      </a>
+      </div>
       <span class="app-bar-label">시민 참여형 환경 데이터</span>
     </header>
     <main class="home-screen">

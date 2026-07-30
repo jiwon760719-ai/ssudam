@@ -14,6 +14,20 @@ it('presents the approved home hierarchy and value summary', () => {
   expect(screen.element.querySelectorAll('.value-item')).toHaveLength(3)
 })
 
+it('keeps the brand non-interactive before the resident and administrator actions', () => {
+  const screen = renderHome({ navigate() {} })
+  const brand = screen.element.querySelector('.brand')
+  const defaultFocusable = Array.from(screen.element.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+  ))
+
+  expect(brand?.tagName).not.toBe('A')
+  expect(defaultFocusable.slice(0, 2)).toEqual([
+    screen.element.querySelector('[data-action="resident"]'),
+    screen.element.querySelector('[data-action="admin"]'),
+  ])
+})
+
 it('enters the resident portal without authentication', () => {
   const navigate = vi.fn()
   const screen = renderHome({ navigate })

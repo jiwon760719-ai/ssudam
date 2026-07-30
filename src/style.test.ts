@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import globalCss from './style.css?raw'
+import mapCss from './map/map.css?raw'
 
 describe('Material You global design contract', () => {
   it.each([
@@ -24,5 +25,10 @@ describe('Material You global design contract', () => {
     expect(globalCss).toMatch(/min-height:\s*44px/)
     expect(globalCss).toMatch(/outline:\s*3px solid/)
     expect(globalCss).toContain('@media (prefers-reduced-motion: reduce)')
+  })
+
+  it('keeps Leaflet controls touch accessible', () => {
+    expect(mapCss).toMatch(/\.leaflet-bar a[\s\S]*min-width:\s*44px/)
+    expect(mapCss).toMatch(/\.leaflet-bar a[\s\S]*min-height:\s*44px/)
   })
 })

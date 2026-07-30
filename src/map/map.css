@@ -30,7 +30,10 @@
 
 .ssudam-map .leaflet-bar a,
 .ssudam-map .leaflet-bar a:hover {
+  min-width: 44px;
+  min-height: 44px;
   color: var(--md-ink);
   background: var(--md-surface);
   border-color: var(--md-outline);
+  line-height: 44px;
 }

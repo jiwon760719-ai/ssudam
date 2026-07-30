@@ -1,6 +1,6 @@
 .ssudam-map {
   min-height: 280px;
-  background: #eaf3e8;
+  background: var(--md-surface-variant);
   font-family: inherit;
 }
 
@@ -9,13 +9,28 @@
 }
 
 .ssudam-map .map-marker--report {
-  filter: drop-shadow(0 1px 2px rgb(23 38 29 / 35%));
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--md-ink) 35%, transparent));
 }
 
 .ssudam-map .map-marker--candidate {
-  filter: drop-shadow(0 1px 2px rgb(99 55 0 / 40%));
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--md-secondary) 40%, transparent));
 }
 
 .ssudam-map .map-marker--selected {
-  filter: drop-shadow(0 0 4px rgb(18 132 62 / 80%));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--md-primary) 80%, transparent));
+}
+
+.ssudam-map .leaflet-control {
+  overflow: hidden;
+  background: var(--md-surface);
+  border: 1px solid var(--md-outline);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-soft);
+}
+
+.ssudam-map .leaflet-bar a,
+.ssudam-map .leaflet-bar a:hover {
+  color: var(--md-ink);
+  background: var(--md-surface);
+  border-color: var(--md-outline);
 }

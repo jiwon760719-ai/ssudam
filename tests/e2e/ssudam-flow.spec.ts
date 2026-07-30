@@ -1,14 +1,8 @@
 import { expect, test } from '@playwright/test'
-
-const transparentPng = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL6WQAAAABJRU5ErkJggg==',
-  'base64',
-)
+import { mockGoogleTiles, transparentPng } from './helpers'
 
 test.beforeEach(async ({ page }) => {
-  await page.route('https://mt.google.com/**', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng })
-  })
+  await mockGoogleTiles(page)
   await page.goto('#/')
   await page.evaluate(() => localStorage.clear())
   await page.reload()
@@ -21,9 +15,8 @@ test('resident report appears in the administrator portal', async ({ page }) => 
   })
   page.on('pageerror', (error) => consoleErrors.push(error.message))
 
-  await expect(page.getByText('사진과 위치로 쓰레기를 제보하고, 데이터로 더 깨끗한 도시를 만듭니다.'))
-    .toBeVisible()
-  await page.getByRole('button', { name: /주민으로 시작/ }).click()
+  await expect(page.getByRole('heading', { name: '발견하고, 함께 바꿔요.' })).toBeVisible()
+  await page.getByRole('button', { name: /주민 제보 시작/ }).click()
   await page.getByLabel('시 선택').selectOption('11')
   await page.locator('.leaflet-container').click({ position: { x: 220, y: 180 } })
   await expect(page.locator('.location-summary'))
@@ -34,14 +27,14 @@ test('resident report appears in the administrator portal', async ({ page }) => 
     buffer: transparentPng,
   })
   await expect(page.getByText('사진 압축이 완료되었습니다.')).toBeVisible()
-  await page.getByLabel('메모').fill('공모전 발표용 신규 제보')
+  await page.getByRole('textbox', { name: '메모' }).fill('공모전 발표용 신규 제보')
   await page.getByRole('button', { name: '제보하기' }).click()
 
   await expect(page.getByRole('heading', { name: '제보 완료' })).toBeVisible()
   await expect(page.getByText('관리자 지도에 반영됨')).toBeVisible()
 
   await page.getByRole('button', { name: '홈으로 돌아가기' }).click()
-  await page.getByRole('button', { name: /관리자 데모 입장/ }).click()
+  await page.getByRole('button', { name: /관리자 데모/ }).click()
 
   await expect(page.getByText('공모전 발표용 신규 제보')).toBeVisible()
   await expect(page.getByText('최신 제보')).toBeVisible()
@@ -72,9 +65,7 @@ test('resident report appears in the administrator portal', async ({ page }) => 
 test('location denial has a fully keyboard-operable city-center fallback', async ({ browser }) => {
   const context = await browser.newContext({ permissions: [] })
   const page = await context.newPage()
-  await page.route('https://mt.google.com/**', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng })
-  })
+  await mockGoogleTiles(page)
   await page.goto('http://127.0.0.1:4173/#/resident/report')
   await page.getByRole('button', { name: '현재 위치 사용' }).focus()
   await page.keyboard.press('Enter')
@@ -138,11 +129,11 @@ for (const viewport of [
 
 test('role choices and resident submission are keyboard operable', async ({ page }) => {
   await page.keyboard.press('Tab')
-  await expect(page.getByRole('button', { name: /주민으로 시작/ })).toBeFocused()
+  await expect(page.getByRole('button', { name: /주민 제보 시작/ })).toBeFocused()
   await page.keyboard.press('Tab')
-  await expect(page.getByRole('button', { name: /관리자 데모 입장/ })).toBeFocused()
+  await expect(page.getByRole('button', { name: /관리자 데모/ })).toBeFocused()
 
-  await page.getByRole('button', { name: /주민으로 시작/ }).focus()
+  await page.getByRole('button', { name: /주민 제보 시작/ }).focus()
   await page.keyboard.press('Enter')
   await page.getByLabel('시 선택').selectOption('11')
   await page.getByRole('button', { name: '선택한 시 중심 사용' }).focus()
@@ -183,7 +174,7 @@ test('reduced motion disables decorative transitions', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('#/')
 
-  const durations = await page.getByRole('button', { name: /주민으로 시작/ }).evaluate((button) => {
+  const durations = await page.getByRole('button', { name: /주민 제보 시작/ }).evaluate((button) => {
     const style = getComputedStyle(button)
     return {
       animation: Number.parseFloat(style.animationDuration),

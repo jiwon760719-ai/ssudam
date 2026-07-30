@@ -14,13 +14,13 @@
 .eyebrow { margin: 0 0 1rem; color: var(--color-green-700); font-weight: 800; letter-spacing: .08em; }
 .home-hero h1 { margin: 0; color: var(--color-navy); font-size: clamp(3rem, 9vw, 6.6rem); line-height: .98; }
 .home-hero h1 span { color: var(--color-green-500); }
-.home-intro { max-width: 36rem; color: var(--color-muted); line-height: 1.7; }
+.home-intro { max-width: 36rem; color: var(--color-muted); line-height: 1.7; word-break: keep-all; }
 .role-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }
 .role-action { min-height: 9.75rem; padding: 1.5rem; flex-direction: column; align-items: flex-start; justify-content: center; gap: .55rem; text-align: left; }
 .role-action:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
 .role-action strong, .role-action span { display: block; }
 .role-action strong { font-size: 1.25rem; }
-.role-action span { opacity: .86; }
+.role-action span { opacity: .86; word-break: keep-all; }
 
 .value-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .value-item { min-height: 8.5rem; padding: 1.5rem; display: grid; align-content: start; gap: .55rem; background: var(--md-surface-variant); border-radius: var(--radius-card); }

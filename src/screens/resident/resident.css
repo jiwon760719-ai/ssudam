@@ -24,6 +24,7 @@
   color: var(--color-navy);
   font-size: clamp(2.25rem, 6vw, 3.75rem);
   line-height: 1.1;
+  word-break: keep-all;
 }
 
 .eyebrow { margin: 0 0 1rem; color: var(--color-green-700); font-weight: 800; letter-spacing: .08em; }

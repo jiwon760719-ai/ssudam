@@ -26,11 +26,16 @@ export function renderResidentComplete(dependencies: CompleteDependencies) {
         <strong>관리자 지도에 반영됨</strong>
         <span>히트맵과 쓰레기통 추천 위치가 새 데이터로 갱신됩니다.</span>
       </div>
+      <p class="storage-warning" data-session-only hidden>
+        저장되지 않아 현재 브라우저 세션에서만 유지됩니다. 새로고침하면 사라질 수 있습니다.
+      </p>
       <button data-action="home" type="button">홈으로 돌아가기</button>
       <button data-action="another" type="button">다른 제보하기</button>
     </section>
   `
   element.querySelector<HTMLElement>('[data-report-id]')!.textContent = report.id
+  element.querySelector<HTMLElement>('[data-session-only]')!.hidden =
+    dependencies.repository.isReportPersisted(report.id)
   element.querySelector('[data-action="home"]')
     ?.addEventListener('click', () => dependencies.navigate({ name: 'home' }))
   element.querySelector('[data-action="another"]')

@@ -12,7 +12,11 @@ export function parseHash(hash: string): AppRoute {
 
   const match = normalized.match(/^#\/resident\/complete\/(.+)$/)
   if (match) {
-    return { name: 'resident-complete', reportId: decodeURIComponent(match[1]) }
+    try {
+      return { name: 'resident-complete', reportId: decodeURIComponent(match[1]) }
+    } catch {
+      return { name: 'home' }
+    }
   }
   return { name: 'home' }
 }

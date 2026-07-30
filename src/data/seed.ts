@@ -12,7 +12,8 @@ const METRO_CLUSTERS = [
   { cityCode: '36', offsets: [[0.004, -0.003], [-0.003, 0.004], [0.005, 0.002]] },
 ] as const
 
-const SEED_PHOTO = 'data:image/webp;base64,U1NVREFN'
+const SEED_PHOTO =
+  'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v89WAAAAA=='
 
 function cityFor(code: string) {
   const city = getCity(code)

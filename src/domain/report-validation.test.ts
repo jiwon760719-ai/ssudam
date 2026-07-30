@@ -7,9 +7,9 @@ describe('validateReportDraft', () => {
       .toEqual({
         ok: false,
         errors: {
-          cityCode: '?쒕? ?좏깮?댁＜?몄슂.',
-          location: '吏?꾩뿉???쒕낫 ?꾩튂瑜??좏깮?댁＜?몄슂.',
-          photoDataUrl: '?곕젅湲??ъ쭊??異붽??댁＜?몄슂.',
+          cityCode: '시를 선택해주세요.',
+          location: '지도에서 제보 위치를 선택해주세요.',
+          photoDataUrl: '쓰레기 사진을 추가해주세요.',
         },
       })
   })
@@ -20,9 +20,9 @@ describe('validateReportDraft', () => {
       latitude: 37.5665,
       longitude: 126.978,
       photoDataUrl: 'data:image/webp;base64,AAAA',
-      note: '  ?숆탳 ???곕젅湲? ',
+      note: '  학교 앞 쓰레기 ',
     })
-    expect(result).toMatchObject({ ok: true, value: { note: '?숆탳 ???곕젅湲?' } })
+    expect(result).toMatchObject({ ok: true, value: { note: '학교 앞 쓰레기' } })
   })
 
   it.each([
@@ -38,7 +38,7 @@ describe('validateReportDraft', () => {
       photoDataUrl: 'data:image/webp;base64,AAAA',
     })).toEqual({
       ok: false,
-      errors: { location: '吏?꾩뿉???쒕낫 ?꾩튂瑜??좏깮?댁＜?몄슂.' },
+      errors: { location: '지도에서 제보 위치를 선택해주세요.' },
     })
   })
 
@@ -55,7 +55,7 @@ describe('validateReportDraft', () => {
       photoDataUrl,
     })).toEqual({
       ok: false,
-      errors: { photoDataUrl: '?곕젅湲??ъ쭊??異붽??댁＜?몄슂.' },
+      errors: { photoDataUrl: '쓰레기 사진을 추가해주세요.' },
     })
   })
 })

@@ -19,6 +19,7 @@ const INITIAL_LOCATION: Coordinates = { latitude: 37.5665, longitude: 126.978 }
 export function renderResidentReport(dependencies: ResidentDependencies) {
   let location: Coordinates | undefined
   let photoDataUrl = ''
+  let selectedPhotoFile: File | undefined
   let submitting = false
   let destroyed = false
   let imageGeneration = 0
@@ -32,7 +33,10 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
       <p class="eyebrow">주민 제보</p>
       <h1 id="report-title">쓰레기를 발견하셨나요?</h1>
       <p class="screen-intro">사진과 위치를 남겨 주시면 관리자 지도에 바로 반영됩니다.</p>
-      <p class="storage-warning" data-storage-warning aria-live="polite" hidden></p>
+      <div class="storage-warning" data-corrupt-warning role="alert" hidden>
+        <p>저장된 데이터가 손상되어 안전한 초기 샘플로 복구했습니다.</p>
+        <button type="button" data-action="reset-corrupt">손상된 데이터 초기화</button>
+      </div>
       <form novalidate>
         <div class="field">
           <label for="city-code">시 선택</label>
@@ -43,9 +47,11 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
           <p id="city-error" class="field-error" data-error="cityCode" aria-live="polite"></p>
         </div>
         <div class="field">
-          <div class="field-label-row"><label>발견 위치</label><button class="text-button" data-action="geolocation" type="button">현재 위치 사용</button></div>
+          <div class="field-label-row"><label>발견 위치</label><span class="location-actions"><button class="text-button" data-action="geolocation" type="button">현재 위치 사용</button><button class="text-button" data-action="use-city-center" type="button">선택한 시 중심 사용</button></span></div>
           <p class="location-summary" data-location aria-live="polite">지도에서 위치를 선택해 주세요.</p>
           <div class="resident-map" data-map aria-label="제보 위치 선택 지도"></div>
+          <p class="map-status" data-map-status aria-live="polite"></p>
+          <button type="button" class="tile-retry" data-action="retry-tiles" hidden>지도 다시 불러오기</button>
           <p class="field-error" data-error="location" aria-live="polite"></p>
         </div>
         <div class="field">
@@ -69,7 +75,9 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
   const summary = element.querySelector<HTMLElement>('[data-location]')!
   const preview = element.querySelector<HTMLImageElement>('[data-preview]')!
   const compression = element.querySelector<HTMLElement>('[data-compression]')!
-  const storageWarning = element.querySelector<HTMLElement>('[data-storage-warning]')!
+  const corruptWarning = element.querySelector<HTMLElement>('[data-corrupt-warning]')!
+  const mapStatus = element.querySelector<HTMLElement>('[data-map-status]')!
+  const retryTilesButton = element.querySelector<HTMLButtonElement>('[data-action="retry-tiles"]')!
   const submitButton = form.querySelector<HTMLButtonElement>('[type="submit"]')!
 
   const renderLocation = (next: Coordinates) => {
@@ -85,6 +93,8 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
       if (target) target.textContent = errors[key] ?? ''
     }
   }
+
+  corruptWarning.hidden = dependencies.repository.getLastWarning() !== 'corrupt-data'
 
   citySelect.addEventListener('change', () => {
     const city = getCity(citySelect.value)
@@ -110,10 +120,28 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
     )
   })
 
+  const onUseCityCenter = () => {
+    const city = getCity(citySelect.value)
+    if (!city) {
+      renderErrors({ cityCode: '시를 선택해주세요.' })
+      return
+    }
+    renderLocation({ latitude: city.centerLatitude, longitude: city.centerLongitude })
+  }
+  const onRetryTiles = () => map?.retryTiles()
+  const onResetCorrupt = () => {
+    dependencies.repository.reset()
+    corruptWarning.hidden = true
+  }
+  element.querySelector('[data-action="use-city-center"]')?.addEventListener('click', onUseCityCenter)
+  element.querySelector('[data-action="reset-corrupt"]')?.addEventListener('click', onResetCorrupt)
+  retryTilesButton.addEventListener('click', onRetryTiles)
+
   photoInput.addEventListener('change', async () => {
     const currentGeneration = ++imageGeneration
     const file = photoInput.files?.[0]
     photoDataUrl = ''
+    selectedPhotoFile = undefined
     preview.hidden = true
     if (!file) return
     compression.textContent = '사진을 제출용으로 압축하고 있습니다…'
@@ -121,6 +149,7 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
       const compressed = await dependencies.imageCompressor(file)
       if (destroyed || currentGeneration !== imageGeneration) return
       photoDataUrl = compressed
+      selectedPhotoFile = file
       preview.src = compressed
       preview.hidden = false
       compression.textContent = '사진 압축이 완료되었습니다.'
@@ -131,7 +160,7 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
     }
   })
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault()
     if (submitting) return
     const draft = {
@@ -150,10 +179,20 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
     submitButton.disabled = true
     submitButton.textContent = '제보를 저장하고 있습니다…'
     const report = dependencies.repository.addReport(result.value)
-    if (dependencies.repository.getLastWarning() === 'storage-quota') {
-      storageWarning.textContent = '브라우저 저장 공간이 부족해 현재 화면에서만 제보가 유지됩니다.'
-      storageWarning.hidden = false
+    if (dependencies.repository.getLastWarning() === 'storage-quota' && selectedPhotoFile) {
+      compression.textContent = '저장 공간을 위해 사진 용량을 한 번 더 줄이고 있습니다…'
+      try {
+        const lowerQualityPhoto = await dependencies.imageCompressor(
+          selectedPhotoFile,
+          { quality: 0.45 },
+        )
+        if (destroyed) return
+        dependencies.repository.retryReportPersistence(report.id, lowerQualityPhoto)
+      } catch {
+        // The repository already retains the original report for this session.
+      }
     }
+    if (destroyed) return
     dependencies.navigate({ name: 'resident-complete', reportId: report.id })
   })
 
@@ -164,8 +203,14 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
       map = dependencies.mapFactory(mapContainer, {
         center: INITIAL_LOCATION,
         zoom: 11,
-        onTileError(message) { summary.textContent = message },
-        onTileReady() {},
+        onTileError(message) {
+          mapStatus.textContent = message
+          retryTilesButton.hidden = false
+        },
+        onTileReady() {
+          mapStatus.textContent = ''
+          retryTilesButton.hidden = true
+        },
       })
       unlistenMap = map.onMapClick(renderLocation)
     },
@@ -173,6 +218,9 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
       if (destroyed) return
       destroyed = true
       imageGeneration += 1
+      element.querySelector('[data-action="use-city-center"]')?.removeEventListener('click', onUseCityCenter)
+      element.querySelector('[data-action="reset-corrupt"]')?.removeEventListener('click', onResetCorrupt)
+      retryTilesButton.removeEventListener('click', onRetryTiles)
       unlistenMap?.()
       map?.destroy()
       unlistenMap = undefined

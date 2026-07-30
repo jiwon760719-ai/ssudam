@@ -137,6 +137,35 @@ function renderLatestReport(container: HTMLElement, reports: WasteReport[]): voi
   if (latest.note) container.append(textElement('p', latest.note, 'latest-note'))
 }
 
+function renderSelectedReport(container: HTMLElement, report: WasteReport): void {
+  container.replaceChildren()
+  container.append(textElement('p', '선택한 제보', 'latest-label'))
+  container.append(textElement('h3', report.cityName))
+  container.append(textElement('p', new Date(report.createdAt).toLocaleString('ko-KR')))
+  container.append(textElement(
+    'p',
+    `위치 ${report.latitude.toFixed(5)}, ${report.longitude.toFixed(5)}`,
+  ))
+  if (report.note) container.append(textElement('p', report.note, 'latest-note'))
+}
+
+function renderSelectedCandidate(container: HTMLElement, candidate: BinCandidate): void {
+  container.replaceChildren()
+  container.append(textElement('p', '선택한 추천 위치', 'latest-label'))
+  container.append(textElement('h3', `종합 점수 ${candidate.score}점`))
+  const evidence = document.createElement('dl')
+  const rows: Array<[string, string]> = [
+    ['반경 내 제보', `${candidate.reportCount}건`],
+    ['반복 제보 점수', `${Math.round(candidate.recurrenceScore * 100)}점`],
+    ['기존 쓰레기통 거리', `${candidate.nearestBinDistanceMeters}m`],
+  ]
+  rows.forEach(([term, value]) => {
+    evidence.append(textElement('dt', term))
+    evidence.append(textElement('dd', value))
+  })
+  container.append(evidence)
+}
+
 export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHandle {
   const now = dependencies.now ?? (() => new Date())
   let filters: AdminFilters = { cityCode: 'all', days: 30 }
@@ -144,6 +173,8 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
   let map: MapAdapter | undefined
   let destroyed = false
   let candidates: BinCandidate[] = []
+  let currentView: AdminViewModel = { reports: [], bins: [], candidates: [] }
+  let unsubscribeMarkerSelection = () => {}
 
   const element = document.createElement('main')
   element.className = 'admin-dashboard'
@@ -153,6 +184,10 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
       <div><p class="eyebrow">실시간 데이터 분석</p><h1>쓰담쓰담 관리자</h1></div>
       <button type="button" class="reset-trigger" data-action="open-reset">데모 데이터 초기화</button>
     </header>
+    <div class="storage-warning" data-corrupt-warning role="alert" hidden>
+      <p>저장된 데이터가 손상되어 안전한 초기 샘플로 복구했습니다.</p>
+      <button type="button" data-action="reset-corrupt">손상된 데이터 초기화</button>
+    </div>
     <section class="admin-controls" aria-label="대시보드 필터">
       <label>지역 <select data-filter="city" aria-label="지역 선택"></select></label>
       <label>기간 <select data-filter="days" aria-label="기간 선택"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option></select></label>
@@ -189,6 +224,8 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
   const latestReport = element.querySelector<HTMLElement>('[data-latest]')!
   const emptyState = element.querySelector<HTMLElement>('[data-empty]')!
   const dialog = element.querySelector<HTMLDialogElement>('[data-reset-dialog]')!
+  const corruptWarning = element.querySelector<HTMLElement>('[data-corrupt-warning]')!
+  corruptWarning.hidden = dependencies.repository.getLastWarning() !== 'corrupt-data'
 
   const allOption = document.createElement('option')
   allOption.value = 'all'
@@ -213,6 +250,7 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
     if (destroyed) return
     const state = dependencies.repository.getState()
     const view = createViewModel(state.reports, state.bins, filters, now())
+    currentView = view
     candidates = view.candidates
     const heat = buildHeatPoints(view.reports)
     map?.renderReports(view.reports)
@@ -255,6 +293,19 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
   const onOpenReset = () => dialog.showModal()
   const onConfirmReset = () => dependencies.repository.reset()
   const onRetryTiles = () => map?.retryTiles()
+  const onResetCorrupt = () => {
+    dependencies.repository.reset()
+    corruptWarning.hidden = true
+  }
+  const onMarkerSelect = (selection: { kind: 'report' | 'candidate'; id: string }) => {
+    if (selection.kind === 'report') {
+      const report = currentView.reports.find((item) => item.id === selection.id)
+      if (report) renderSelectedReport(latestReport, report)
+      return
+    }
+    const candidate = currentView.candidates.find((item) => item.id === selection.id)
+    if (candidate) renderSelectedCandidate(latestReport, candidate)
+  }
 
   citySelect.addEventListener('change', onCityChange)
   daySelect.addEventListener('change', onDayChange)
@@ -263,6 +314,7 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
   element.querySelector('[data-action="open-reset"]')?.addEventListener('click', onOpenReset)
   element.querySelector('[data-action="confirm-reset"]')?.addEventListener('click', onConfirmReset)
   retryTilesButton.addEventListener('click', onRetryTiles)
+  element.querySelector('[data-action="reset-corrupt"]')?.addEventListener('click', onResetCorrupt)
   const unsubscribe = dependencies.repository.subscribe(refresh)
   refresh()
 
@@ -284,6 +336,7 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
           retryTilesButton.hidden = true
         },
       })
+      unsubscribeMarkerSelection = map.onMarkerSelect(onMarkerSelect)
       refresh()
     },
     destroy() {
@@ -297,6 +350,8 @@ export function renderAdminDashboard(dependencies: AdminDependencies): ScreenHan
       element.querySelector('[data-action="open-reset"]')?.removeEventListener('click', onOpenReset)
       element.querySelector('[data-action="confirm-reset"]')?.removeEventListener('click', onConfirmReset)
       retryTilesButton.removeEventListener('click', onRetryTiles)
+      element.querySelector('[data-action="reset-corrupt"]')?.removeEventListener('click', onResetCorrupt)
+      unsubscribeMarkerSelection()
       map?.destroy()
       map = undefined
     },

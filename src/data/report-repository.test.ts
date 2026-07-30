@@ -2,12 +2,17 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AppDataState } from '../domain/models'
 import { createReportRepository } from './report-repository'
 
+const validWebp =
+  'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v89WAAAAA=='
+const lowerQualityWebp =
+  'data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA='
+
 const input = {
   cityCode: '11',
   cityName: '서울특별시',
   latitude: 37.5665,
   longitude: 126.978,
-  photoDataUrl: 'data:image/webp;base64,AAAA',
+  photoDataUrl: validWebp,
   note: '학교 앞 쓰레기',
 }
 
@@ -64,6 +69,53 @@ describe('report repository', () => {
 
     expect(repository.getLastWarning()).toBe('corrupt-data')
     expect(repository.getState().reports).toHaveLength(state.reports.length)
+    repository.destroy()
+  })
+
+  it.each([
+    ['invalid timestamp', (state: AppDataState) => ({
+      ...state,
+      reports: [{ ...state.reports[0], createdAt: 'not-a-date' }],
+    })],
+    ['unsupported photo data URL', (state: AppDataState) => ({
+      ...state,
+      reports: [{ ...state.reports[0], photoDataUrl: 'data:text/plain;base64,AAAA' }],
+    })],
+    ['malformed photo base64', (state: AppDataState) => ({
+      ...state,
+      reports: [{ ...state.reports[0], photoDataUrl: 'data:image/webp;base64,AAAAA' }],
+    })],
+    ['photo bytes that do not match the declared image type', (state: AppDataState) => ({
+      ...state,
+      reports: [{ ...state.reports[0], photoDataUrl: 'data:image/webp;base64,U1NVREFN' }],
+    })],
+    ['empty photo payload', (state: AppDataState) => ({
+      ...state,
+      reports: [{ ...state.reports[0], photoDataUrl: 'data:image/webp;base64,' }],
+    })],
+    ['unknown report city', (state: AppDataState) => ({
+      ...state,
+      reports: [{ ...state.reports[0], cityCode: '99999', cityName: '없는 도시' }],
+    })],
+    ['incoherent report city name', (state: AppDataState) => ({
+      ...state,
+      reports: [{ ...state.reports[0], cityName: '부산광역시' }],
+    })],
+    ['unknown bin city', (state: AppDataState) => ({
+      ...state,
+      bins: [{ ...state.bins[0], cityCode: '99999' }],
+    })],
+  ])('recovers safely from stored state with %s', (_label, corruptState) => {
+    const now = () => new Date('2026-07-29T12:00:00.000Z')
+    const seedRepository = createReportRepository({ storage: localStorage, now })
+    const seed = seedRepository.getState()
+    seedRepository.destroy()
+    localStorage.setItem('ssudam:data:v1', JSON.stringify(corruptState(seed)))
+
+    const repository = createReportRepository({ storage: localStorage, now })
+
+    expect(repository.getLastWarning()).toBe('corrupt-data')
+    expect(repository.getState()).toEqual(seed)
     repository.destroy()
   })
 
@@ -175,6 +227,111 @@ describe('report repository', () => {
 
     expect(repository.getReport('MEMORY-1')).toBeDefined()
     expect(repository.getLastWarning()).toBe('storage-quota')
+  })
+
+  it('retries the same quota-limited report with a lower-quality photo without duplication', () => {
+    let writes = 0
+    let persisted: string | undefined
+    const storage = {
+      getItem: () => null,
+      setItem(_key: string, value: string) {
+        writes += 1
+        if (writes === 1) throw new DOMException('quota', 'QuotaExceededError')
+        persisted = value
+      },
+      removeItem() {},
+      clear() {},
+      key: () => null,
+      length: 0,
+    } satisfies Storage
+    const repository = createReportRepository({
+      storage,
+      idFactory: () => 'RETRY-1',
+    })
+    const initialCount = repository.getState().reports.length
+
+    const report = repository.addReport(input)
+    const persistedAfterRetry = repository.retryReportPersistence(
+      report.id,
+      lowerQualityWebp,
+    )
+
+    expect(persistedAfterRetry).toBe(true)
+    expect(repository.getState().reports).toHaveLength(initialCount + 1)
+    expect(repository.getReport(report.id)?.photoDataUrl).toBe(lowerQualityWebp)
+    expect(JSON.parse(persisted!).reports).toHaveLength(initialCount + 1)
+    expect(repository.isReportPersisted(report.id)).toBe(true)
+    expect(repository.getLastWarning()).toBeUndefined()
+  })
+
+  it('rejects an invalid lower-quality photo without replacing or persisting the report', () => {
+    let writes = 0
+    const storage = {
+      getItem: () => null,
+      setItem() {
+        writes += 1
+        if (writes === 1) throw new DOMException('quota', 'QuotaExceededError')
+      },
+      removeItem() {},
+      clear() {},
+      key: () => null,
+      length: 0,
+    } satisfies Storage
+    const repository = createReportRepository({ storage, idFactory: () => 'INVALID-RETRY-1' })
+    const report = repository.addReport(input)
+
+    const persisted = repository.retryReportPersistence(
+      report.id,
+      'data:image/webp;base64,LOWER',
+    )
+
+    expect(persisted).toBe(false)
+    expect(writes).toBe(1)
+    expect(repository.getReport(report.id)?.photoDataUrl).toBe(validWebp)
+    expect(repository.isReportPersisted(report.id)).toBe(false)
+    expect(repository.getLastWarning()).toBe('storage-quota')
+  })
+
+  it('marks a report as session-only when retry persistence still exceeds quota', () => {
+    const storage = {
+      getItem: () => null,
+      setItem: () => { throw new DOMException('quota', 'QuotaExceededError') },
+      removeItem() {},
+      clear() {},
+      key: () => null,
+      length: 0,
+    } satisfies Storage
+    const repository = createReportRepository({ storage, idFactory: () => 'SESSION-1' })
+    const initialCount = repository.getState().reports.length
+
+    const report = repository.addReport(input)
+    const persisted = repository.retryReportPersistence(
+      report.id,
+      lowerQualityWebp,
+    )
+
+    expect(persisted).toBe(false)
+    expect(repository.getState().reports).toHaveLength(initialCount + 1)
+    expect(repository.isReportPersisted(report.id)).toBe(false)
+    expect(repository.getLastWarning()).toBe('storage-quota')
+  })
+
+  it('marks a memory-retained report as session-only when storage is unavailable', () => {
+    const storage = {
+      getItem: () => null,
+      setItem: () => { throw new DOMException('blocked', 'SecurityError') },
+      removeItem() {},
+      clear() {},
+      key: () => null,
+      length: 0,
+    } satisfies Storage
+    const repository = createReportRepository({ storage, idFactory: () => 'UNAVAILABLE-1' })
+
+    const report = repository.addReport(input)
+
+    expect(repository.getReport(report.id)).toBeDefined()
+    expect(repository.isReportPersisted(report.id)).toBe(false)
+    expect(repository.getLastWarning()).toBe('storage-unavailable')
   })
 
   it('reloads state when another tab updates the storage key', () => {

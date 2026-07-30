@@ -15,7 +15,7 @@ type Result = { ok: false; errors: Errors } | { ok: true; value: CreateReportInp
 export function validateReportDraft(draft: Draft): Result {
   const errors: Errors = {}
   const city = getCity(draft.cityCode)
-  if (!city) errors.cityCode = '?쒕? ?좏깮?댁＜?몄슂.'
+  if (!city) errors.cityCode = '시를 선택해주세요.'
   if (
     draft.latitude === undefined ||
     draft.longitude === undefined ||
@@ -26,10 +26,10 @@ export function validateReportDraft(draft: Draft): Result {
     draft.longitude < 124 ||
     draft.longitude > 132
   ) {
-    errors.location = '吏?꾩뿉???쒕낫 ?꾩튂瑜??좏깮?댁＜?몄슂.'
+    errors.location = '지도에서 제보 위치를 선택해주세요.'
   }
   if (!/^data:image\/[^;,]+(?:;[^,]*)?,.+$/.test(draft.photoDataUrl)) {
-    errors.photoDataUrl = '?곕젅湲??ъ쭊??異붽??댁＜?몄슂.'
+    errors.photoDataUrl = '쓰레기 사진을 추가해주세요.'
   }
   if (Object.keys(errors).length > 0 || !city) return { ok: false, errors }
 

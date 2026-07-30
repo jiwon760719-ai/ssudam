@@ -5,7 +5,7 @@ import './map.css'
 import type { HeatPoint } from '../analytics/recommendations'
 import type { BinCandidate, ExistingBin, WasteReport } from '../domain/models'
 import { toBinMarkers, toCandidateMarkers, toReportMarkers, type MapMarker } from './map-data'
-import type { Coordinates, MapAdapter } from './map-types'
+import type { Coordinates, MapAdapter, MapMarkerSelection } from './map-types'
 
 const TILE_URL =
   'https://mt.google.com/vt/lyrs=m&hl=ko_KR&scale=2&x={x}&y={y}&z={z}'
@@ -71,13 +71,20 @@ function markerStyle(marker: MapMarker): L.CircleMarkerOptions {
   }
 }
 
-function addMarkers(group: L.LayerGroup, markers: MapMarker[]): void {
+export function addMarkers(
+  group: L.LayerGroup,
+  markers: MapMarker[],
+  onSelect?: (selection: MapMarkerSelection) => void,
+): void {
   group.clearLayers()
 
   for (const marker of markers) {
-    L.circleMarker([marker.latitude, marker.longitude], markerStyle(marker))
-      .bindPopup(popupContent(marker.label))
-      .addTo(group)
+    const circle = L.circleMarker([marker.latitude, marker.longitude], markerStyle(marker))
+    if (marker.kind !== 'bin') {
+      const selection: MapMarkerSelection = { kind: marker.kind, id: marker.id }
+      circle.on('click', () => onSelect?.(selection))
+    }
+    circle.bindPopup(popupContent(marker.label)).addTo(group)
   }
 }
 
@@ -108,6 +115,7 @@ export function createLeafletMap(
   let selectedLocationLayer: L.CircleMarker | undefined
   let visibility = { reports: true, heat: true, bins: true, candidates: true }
   let destroyed = false
+  let markerSelectListener: ((selection: MapMarkerSelection) => void) | undefined
 
   const setLayerVisible = (layer: L.Layer, visible: boolean) => {
     if (visible && !map.hasLayer(layer)) {
@@ -150,8 +158,17 @@ export function createLeafletMap(
       }
     },
 
+    onMarkerSelect(listener) {
+      markerSelectListener = listener
+      return () => {
+        if (markerSelectListener === listener) markerSelectListener = undefined
+      }
+    },
+
     renderReports(reports: WasteReport[]) {
-      if (!destroyed) addMarkers(reportsLayer, toReportMarkers(reports))
+      if (!destroyed) addMarkers(reportsLayer, toReportMarkers(reports), (selection) => {
+        markerSelectListener?.(selection)
+      })
     },
 
     renderHeat(points: HeatPoint[]) {
@@ -172,7 +189,9 @@ export function createLeafletMap(
     },
 
     renderCandidates(candidates: BinCandidate[]) {
-      if (!destroyed) addMarkers(candidatesLayer, toCandidateMarkers(candidates))
+      if (!destroyed) addMarkers(candidatesLayer, toCandidateMarkers(candidates), (selection) => {
+        markerSelectListener?.(selection)
+      })
     },
 
     setLayerVisibility(nextVisibility) {
@@ -196,6 +215,7 @@ export function createLeafletMap(
     destroy() {
       if (destroyed) return
       destroyed = true
+      markerSelectListener = undefined
 
       tileLayer.off()
       map.off('click')

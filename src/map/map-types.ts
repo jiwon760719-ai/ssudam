@@ -10,10 +10,15 @@ export type MapLayerVisibility = {
   candidates: boolean
 }
 
+export type MapMarkerSelection =
+  | { kind: 'report'; id: string }
+  | { kind: 'candidate'; id: string }
+
 export type MapAdapter = {
   setView(center: Coordinates, zoom: number): void
   setSelectedLocation(location: Coordinates | undefined): void
   onMapClick(listener: (location: Coordinates) => void): () => void
+  onMarkerSelect(listener: (selection: MapMarkerSelection) => void): () => void
   renderReports(reports: WasteReport[]): void
   renderHeat(points: HeatPoint[]): void
   renderBins(bins: ExistingBin[]): void

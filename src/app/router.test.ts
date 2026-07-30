@@ -12,6 +12,10 @@ describe('parseHash', () => {
   ])('maps %s to the expected app route', (hash, expected) => {
     expect(parseHash(hash)).toEqual(expected)
   })
+
+  it('falls back home for malformed completion percent encoding', () => {
+    expect(parseHash('#/resident/complete/%E0%A4%A')).toEqual({ name: 'home' })
+  })
 })
 
 describe('toHash', () => {

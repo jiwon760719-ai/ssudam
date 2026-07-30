@@ -49,6 +49,8 @@ export type ReportRepository = {
   getState(): AppDataState
   getReport(id: string): WasteReport | undefined
   addReport(input: CreateReportInput): WasteReport
+  retryReportPersistence(id: string, photoDataUrl: string): boolean
+  isReportPersisted(id: string): boolean
   reset(): AppDataState
   subscribe(listener: (state: AppDataState) => void): () => void
   getLastWarning(): 'storage-unavailable' | 'storage-quota' | 'corrupt-data' | undefined

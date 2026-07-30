@@ -1,10 +1,11 @@
 import type { AppDataState, ReportRepository } from '../domain/models'
-import type { MapAdapter, MapFactory } from '../map/map-types'
+import type { MapAdapter, MapFactory, MapMarkerSelection } from '../map/map-types'
 
 export function createMapFactoryFake() {
   let clickListener: ((location: { latitude: number; longitude: number }) => void) | undefined
   let tileErrorListener: ((message: string) => void) | undefined
   let tileReadyListener: (() => void) | undefined
+  let markerSelectListener: ((selection: MapMarkerSelection) => void) | undefined
   let retryTileCalls = 0
   const setViews: Array<{ center: { latitude: number; longitude: number }; zoom: number }> = []
   const adapter: MapAdapter = {
@@ -13,6 +14,12 @@ export function createMapFactoryFake() {
     onMapClick(listener) {
       clickListener = listener
       return () => { clickListener = undefined }
+    },
+    onMarkerSelect(listener) {
+      markerSelectListener = listener
+      return () => {
+        if (markerSelectListener === listener) markerSelectListener = undefined
+      }
     },
     renderReports() {},
     renderHeat() {},
@@ -37,6 +44,9 @@ export function createMapFactoryFake() {
     },
     tileReady() {
       tileReadyListener?.()
+    },
+    selectMarker(kind: MapMarkerSelection['kind'], id: string) {
+      markerSelectListener?.({ kind, id } as MapMarkerSelection)
     },
     retryTileCalls: () => retryTileCalls,
   }
@@ -63,6 +73,14 @@ export function createRepositoryFake(initial: AppDataState): ReportRepository & 
       notify()
       return structuredClone(report)
     },
+    retryReportPersistence(id, photoDataUrl) {
+      const report = state.reports.find((candidate) => candidate.id === id)
+      if (!report) return false
+      report.photoDataUrl = photoDataUrl
+      notify()
+      return true
+    },
+    isReportPersisted: () => true,
     reset() {
       state = structuredClone(initial)
       notify()

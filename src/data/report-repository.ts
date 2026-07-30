@@ -4,6 +4,7 @@ import type {
   ReportRepository,
   WasteReport,
 } from '../domain/models'
+import { getCity } from './cities'
 import { createSeedState } from './seed'
 
 const STORAGE_KEY = 'ssudam:data:v1'
@@ -20,6 +21,7 @@ export function createReportRepository(options: Options = {}): ReportRepository 
   const idFactory = options.idFactory ?? (() => `SSUDAM-${Date.now().toString(36).toUpperCase()}`)
   let warning: ReturnType<ReportRepository['getLastWarning']>
   let state = readInitial()
+  const sessionOnlyReportIds = new Set<string>()
 
   function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null
@@ -40,14 +42,47 @@ export function createReportRepository(options: Options = {}): ReportRepository 
       && longitude <= 132
   }
 
+  function isSupportedPhotoDataUrl(value: unknown): value is string {
+    if (typeof value !== 'string') return false
+    const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value)
+    if (!match || match[2].length < 4 || match[2].length % 4 !== 0) return false
+
+    let bytes: Uint8Array
+    try {
+      const decoded = atob(match[2])
+      bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0))
+    } catch {
+      return false
+    }
+
+    if (match[1] === 'jpeg') {
+      return bytes.length >= 3
+        && bytes[0] === 0xff
+        && bytes[1] === 0xd8
+        && bytes[2] === 0xff
+    }
+    if (match[1] === 'png') {
+      const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+      return bytes.length >= signature.length
+        && signature.every((byte, index) => bytes[index] === byte)
+    }
+    return bytes.length >= 12
+      && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF'
+      && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
+  }
+
   function isWasteReport(value: unknown): value is WasteReport {
     if (!isRecord(value)) return false
+    const city = typeof value.cityCode === 'string' ? getCity(value.cityCode) : undefined
+    const isIsoTimestamp = typeof value.createdAt === 'string'
+      && !Number.isNaN(Date.parse(value.createdAt))
+      && new Date(value.createdAt).toISOString() === value.createdAt
     return isNonEmptyString(value.id)
-      && isNonEmptyString(value.cityCode)
-      && isNonEmptyString(value.cityName)
+      && city !== undefined
+      && value.cityName === city.name
       && isKoreanCoordinates(value.latitude, value.longitude)
-      && isNonEmptyString(value.createdAt)
-      && isNonEmptyString(value.photoDataUrl)
+      && isIsoTimestamp
+      && isSupportedPhotoDataUrl(value.photoDataUrl)
       && (value.source === 'seed' || value.source === 'resident')
       && (value.note === undefined || typeof value.note === 'string')
   }
@@ -55,7 +90,8 @@ export function createReportRepository(options: Options = {}): ReportRepository 
   function isExistingBin(value: unknown): value is ExistingBin {
     if (!isRecord(value)) return false
     return isNonEmptyString(value.id)
-      && isNonEmptyString(value.cityCode)
+      && typeof value.cityCode === 'string'
+      && getCity(value.cityCode) !== undefined
       && isKoreanCoordinates(value.latitude, value.longitude)
   }
 
@@ -91,19 +127,24 @@ export function createReportRepository(options: Options = {}): ReportRepository 
     }
   }
 
-  function persist(): void {
-    if (!options.storage) return
+  function persist(): boolean {
+    if (!options.storage) {
+      warning = 'storage-unavailable'
+      return false
+    }
     try {
       options.storage.setItem(STORAGE_KEY, JSON.stringify(state))
       if (warning === 'storage-quota' || warning === 'storage-unavailable') {
         warning = undefined
       }
+      return true
     } catch (error) {
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
         warning = 'storage-quota'
-        return
+        return false
       }
       warning = 'storage-unavailable'
+      return false
     }
   }
 
@@ -117,6 +158,7 @@ export function createReportRepository(options: Options = {}): ReportRepository 
       const parsed: unknown = JSON.parse(event.newValue)
       if (!isValidState(parsed)) return
       state = parsed
+      sessionOnlyReportIds.clear()
       emit()
     } catch {
       // A malformed cross-tab payload must not disturb the current session.
@@ -141,13 +183,31 @@ export function createReportRepository(options: Options = {}): ReportRepository 
         source: 'resident',
       }
       state = { ...state, reports: [...state.reports, report] }
-      persist()
+      if (persist()) sessionOnlyReportIds.clear()
+      else sessionOnlyReportIds.add(report.id)
       emit()
       return structuredClone(report)
     },
+    retryReportPersistence(id, photoDataUrl) {
+      if (!isSupportedPhotoDataUrl(photoDataUrl)) return false
+      const reportIndex = state.reports.findIndex((report) => report.id === id)
+      if (reportIndex < 0) return false
+      const reports = [...state.reports]
+      reports[reportIndex] = { ...reports[reportIndex], photoDataUrl }
+      state = { ...state, reports }
+      const persisted = persist()
+      if (persisted) sessionOnlyReportIds.clear()
+      else sessionOnlyReportIds.add(id)
+      emit()
+      return persisted
+    },
+    isReportPersisted: (id) => !sessionOnlyReportIds.has(id),
     reset() {
       state = createSeedState(now())
-      persist()
+      if (persist()) {
+        warning = undefined
+        sessionOnlyReportIds.clear()
+      }
       emit()
       return structuredClone(state)
     },

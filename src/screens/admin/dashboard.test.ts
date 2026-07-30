@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { createMapFactoryFake, createRepositoryFake } from '../../test/fakes'
 import { renderAdminDashboard } from './dashboard'
 
@@ -102,6 +102,87 @@ it('keeps dashboard data available and retries tiles after a map tile error', ()
   map.tileReady()
   expect(screen.element.querySelector('[data-map-status]')?.textContent).toBe('')
   expect(retry?.hidden).toBe(true)
+})
+
+it('shows the matching report evidence when a report marker is selected', () => {
+  const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
+  const report = repository.addReport({
+    cityCode: '11',
+    cityName: '서울특별시',
+    latitude: 37.5665,
+    longitude: 126.978,
+    photoDataUrl: 'data:image/webp;base64,AAAA',
+    note: '마커로 고른 주민 메모',
+  })
+  const map = createMapFactoryFake()
+  const screen = renderAdminDashboard({
+    repository,
+    mapFactory: map.factory,
+    navigate() {},
+  })
+  document.body.append(screen.element)
+  screen.mount?.()
+
+  map.selectMarker('report', report.id)
+
+  expect(screen.element.querySelector('[data-latest]')?.textContent).toContain('선택한 제보')
+  expect(screen.element.querySelector('[data-latest]')?.textContent).toContain('마커로 고른 주민 메모')
+})
+
+it('shows score evidence for the matching candidate marker and disposes the listener', () => {
+  const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
+  repository.addReport({
+    cityCode: '11',
+    cityName: '서울특별시',
+    latitude: 37.5665,
+    longitude: 126.978,
+    photoDataUrl: 'data:image/webp;base64,AAAA',
+  })
+  const map = createMapFactoryFake()
+  const screen = renderAdminDashboard({
+    repository,
+    mapFactory: map.factory,
+    navigate() {},
+  })
+  document.body.append(screen.element)
+  screen.mount?.()
+  const candidateId = screen.element
+    .querySelector<HTMLElement>('[data-candidate-id]')
+    ?.dataset.candidateId
+  expect(candidateId).toBeTruthy()
+
+  map.selectMarker('candidate', candidateId!)
+
+  const detail = screen.element.querySelector('[data-latest]')
+  expect(detail?.textContent).toContain('선택한 추천 위치')
+  expect(detail?.textContent).toContain('종합 점수')
+  expect(detail?.textContent).toContain('반경 내 제보')
+
+  screen.destroy()
+  map.selectMarker('report', 'SSUDAM-TEST-1')
+  expect(detail?.textContent).toContain('선택한 추천 위치')
+})
+
+it('surfaces corrupt saved data with an explicit recovery action', () => {
+  const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
+  vi.spyOn(repository, 'getLastWarning').mockReturnValue('corrupt-data')
+  const reset = vi.spyOn(repository, 'reset')
+  const screen = renderAdminDashboard({
+    repository,
+    mapFactory: createMapFactoryFake().factory,
+    navigate() {},
+  })
+  document.body.append(screen.element)
+
+  const warning = screen.element.querySelector<HTMLElement>('[data-corrupt-warning]')
+  expect(warning?.hidden).toBe(false)
+  expect(warning?.textContent).toContain('저장된 데이터가 손상되어')
+  screen.element
+    .querySelector<HTMLButtonElement>('[data-action="reset-corrupt"]')
+    ?.click()
+
+  expect(reset).toHaveBeenCalledOnce()
+  expect(warning?.hidden).toBe(true)
 })
 
 it('resets demo data only after the reset dialog is confirmed', () => {

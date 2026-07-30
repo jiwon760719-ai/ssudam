@@ -3,6 +3,26 @@ import { createApp } from '../../app/app'
 import { createRepositoryFake, createMapFactoryFake } from '../../test/fakes'
 import { renderResidentReport } from './report'
 
+it('shows readable Korean errors for every missing required field', () => {
+  const screen = renderResidentReport({
+    repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),
+    mapFactory: createMapFactoryFake().factory,
+    imageCompressor: vi.fn(),
+    navigate() {},
+  })
+  document.body.append(screen.element)
+
+  screen.element.querySelector<HTMLFormElement>('form')!
+    .dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+
+  expect(screen.element.querySelector('[data-error="cityCode"]')?.textContent)
+    .toBe('시를 선택해주세요.')
+  expect(screen.element.querySelector('[data-error="location"]')?.textContent)
+    .toBe('지도에서 제보 위치를 선택해주세요.')
+  expect(screen.element.querySelector('[data-error="photoDataUrl"]')?.textContent)
+    .toBe('쓰레기 사진을 추가해주세요.')
+})
+
 it('stores a map-selected report and navigates to 제보 완료', async () => {
   const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
   const map = createMapFactoryFake()
@@ -123,15 +143,20 @@ it('keeps map selection available when geolocation permission is rejected', () =
   expect(screen.element.querySelector<HTMLButtonElement>('[type="submit"]')?.disabled).toBe(false)
 })
 
-it('shows a nonblocking warning when a report is only kept in this browser session', async () => {
+it('recompresses once at lower quality and retries the same report after quota', async () => {
   const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
   vi.spyOn(repository, 'getLastWarning').mockReturnValue('storage-quota')
+  const retry = vi.spyOn(repository, 'retryReportPersistence').mockReturnValue(true)
+  const imageCompressor = vi.fn()
+    .mockResolvedValueOnce('data:image/webp;base64,NORMAL')
+    .mockResolvedValueOnce('data:image/webp;base64,LOWER')
+  const navigate = vi.fn()
   const map = createMapFactoryFake()
   const screen = renderResidentReport({
     repository,
     mapFactory: map.factory,
-    imageCompressor: vi.fn().mockResolvedValue('data:image/webp;base64,AAAA'),
-    navigate() {},
+    imageCompressor,
+    navigate,
   })
   document.body.append(screen.element)
   screen.mount?.()
@@ -146,9 +171,13 @@ it('shows a nonblocking warning when a report is only kept in this browser sessi
   await Promise.resolve()
 
   screen.element.querySelector<HTMLFormElement>('form')?.dispatchEvent(new SubmitEvent('submit', { cancelable: true }))
+  await Promise.resolve()
+  await Promise.resolve()
 
-  expect(screen.element.textContent)
-    .toContain('브라우저 저장 공간이 부족해 현재 화면에서만 제보가 유지됩니다.')
+  expect(imageCompressor).toHaveBeenNthCalledWith(2, input.files?.[0], { quality: 0.45 })
+  expect(retry).toHaveBeenCalledWith('SSUDAM-TEST-1', 'data:image/webp;base64,LOWER')
+  expect(repository.getState().reports).toHaveLength(1)
+  expect(navigate).toHaveBeenCalledOnce()
 })
 
 it('keeps the report form usable when photo compression fails', async () => {
@@ -168,4 +197,76 @@ it('keeps the report form usable when photo compression fails', async () => {
   expect(screen.element.querySelector('[data-compression]')?.textContent)
     .toBe('사진을 처리하지 못했습니다. 다른 사진을 선택해 주세요.')
   expect(screen.element.querySelector<HTMLButtonElement>('[type="submit"]')?.disabled).toBe(false)
+})
+
+it('offers a clear reset action when stored data was corrupt', () => {
+  const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
+  vi.spyOn(repository, 'getLastWarning').mockReturnValue('corrupt-data')
+  const reset = vi.spyOn(repository, 'reset')
+  const screen = renderResidentReport({
+    repository,
+    mapFactory: createMapFactoryFake().factory,
+    imageCompressor: vi.fn(),
+    navigate() {},
+  })
+  document.body.append(screen.element)
+
+  expect(screen.element.textContent)
+    .toContain('저장된 데이터가 손상되어 안전한 초기 샘플로 복구했습니다.')
+  const recovery = screen.element.querySelector<HTMLButtonElement>('[data-action="reset-corrupt"]')
+  expect(recovery?.textContent).toBe('손상된 데이터 초기화')
+  recovery?.click()
+
+  expect(reset).toHaveBeenCalledOnce()
+  expect(screen.element.querySelector<HTMLElement>('[data-corrupt-warning]')?.hidden).toBe(true)
+})
+
+it('selects the chosen city center with a keyboard-operable button', () => {
+  const map = createMapFactoryFake()
+  const screen = renderResidentReport({
+    repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),
+    mapFactory: map.factory,
+    imageCompressor: vi.fn(),
+    navigate() {},
+  })
+  document.body.append(screen.element)
+  screen.mount?.()
+  const city = screen.element.querySelector<HTMLSelectElement>('[name="cityCode"]')!
+  city.value = '11'
+  city.dispatchEvent(new Event('change'))
+
+  screen.element.querySelector<HTMLButtonElement>('[data-action="use-city-center"]')?.click()
+
+  expect(screen.element.querySelector('[data-location]')?.textContent)
+    .toBe('선택 위치: 37.56650, 126.97800')
+})
+
+it('keeps selected coordinates while retrying resident map tiles', () => {
+  const map = createMapFactoryFake()
+  const screen = renderResidentReport({
+    repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),
+    mapFactory: map.factory,
+    imageCompressor: vi.fn(),
+    navigate() {},
+  })
+  document.body.append(screen.element)
+  screen.mount?.()
+  map.click(37.5665, 126.978)
+
+  map.tileError('지도를 불러오지 못했습니다.')
+
+  expect(screen.element.querySelector('[data-location]')?.textContent)
+    .toBe('선택 위치: 37.56650, 126.97800')
+  expect(screen.element.querySelector('[data-map-status]')?.textContent)
+    .toBe('지도를 불러오지 못했습니다.')
+  const retry = screen.element.querySelector<HTMLButtonElement>('[data-action="retry-tiles"]')
+  expect(retry?.hidden).toBe(false)
+  retry?.click()
+  expect(map.retryTileCalls()).toBe(1)
+
+  map.tileReady()
+  expect(screen.element.querySelector('[data-map-status]')?.textContent).toBe('')
+  expect(retry?.hidden).toBe(true)
+  expect(screen.element.querySelector('[data-location]')?.textContent)
+    .toBe('선택 위치: 37.56650, 126.97800')
 })

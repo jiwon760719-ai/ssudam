@@ -18,10 +18,10 @@ export function renderResidentComplete(dependencies: CompleteDependencies) {
   element.className = 'complete-page'
   element.innerHTML = `
     <header class="app-bar resident-app-bar">
-      <div class="brand">
+      <a class="brand" href="#/" aria-label="쓰담쓰담 홈">
         <span class="brand-mark" aria-hidden="true">쓰</span>
         <span>쓰담쓰담</span>
-      </div>
+      </a>
     </header>
     <main class="complete-screen">
       <section aria-labelledby="complete-title">

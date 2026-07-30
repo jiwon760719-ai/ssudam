@@ -29,10 +29,10 @@ export function renderResidentReport(dependencies: ResidentDependencies) {
   element.className = 'resident-page'
   element.innerHTML = `
     <header class="app-bar resident-app-bar">
-      <div class="brand">
+      <a class="brand" href="#/" aria-label="쓰담쓰담 홈">
         <span class="brand-mark" aria-hidden="true">쓰</span>
         <span>쓰담쓰담</span>
-      </div>
+      </a>
       <a class="button button--text back-link" href="#/">처음으로</a>
     </header>
     <main class="resident-screen">

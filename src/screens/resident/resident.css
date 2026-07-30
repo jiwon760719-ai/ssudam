@@ -6,7 +6,8 @@
 }
 
 .resident-app-bar { padding-block: .75rem; }
-.brand { display: inline-flex; align-items: center; gap: .625rem; color: var(--md-ink); font-weight: 800; }
+.brand { display: inline-flex; align-items: center; gap: .625rem; color: var(--md-ink); font-weight: 800; text-decoration: none; }
+.resident-app-bar .brand { min-height: 44px; }
 .brand-mark { display: grid; width: 2rem; aspect-ratio: 1; place-items: center; color: #fff; background: var(--md-primary); border-radius: .65rem; }
 .back-link { padding-inline: .75rem; font-weight: 700; }
 

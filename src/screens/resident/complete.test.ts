@@ -21,6 +21,22 @@ it('renders completion actions with filled and tonal hierarchy', () => {
     .toContain('관리자 지도에 반영됨')
 })
 
+it('links the completion app-bar brand to home', () => {
+  const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
+  const report = repository.addReport({
+    cityCode: '11',
+    cityName: '서울특별시',
+    latitude: 37.5665,
+    longitude: 126.978,
+    photoDataUrl: 'data:image/webp;base64,AAAA',
+  })
+  const screen = renderResidentComplete({ repository, reportId: report.id, navigate() {} })
+
+  expect(screen.element.querySelector(
+    '.app-bar .brand[href="#/"][aria-label="쓰담쓰담 홈"]',
+  )).not.toBeNull()
+})
+
 it('shows 제보 완료 and administrator map synchronization copy', () => {
   const repository = createRepositoryFake({ version: 1, reports: [], bins: [] })
   const report = repository.addReport({

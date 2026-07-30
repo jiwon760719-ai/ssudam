@@ -18,6 +18,19 @@ it('renders the approved resident form hierarchy', () => {
   expect(screen.element.querySelector('.submit-button')?.textContent).toContain('제보하기')
 })
 
+it('links the resident app-bar brand to home', () => {
+  const screen = renderResidentReport({
+    repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),
+    mapFactory: createMapFactoryFake().factory,
+    imageCompressor: vi.fn(),
+    navigate() {},
+  })
+
+  expect(screen.element.querySelector(
+    '.app-bar .brand[href="#/"][aria-label="쓰담쓰담 홈"]',
+  )).not.toBeNull()
+})
+
 it('shows readable Korean errors for every missing required field', () => {
   const screen = renderResidentReport({
     repository: createRepositoryFake({ version: 1, reports: [], bins: [] }),
